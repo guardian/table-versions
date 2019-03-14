@@ -1,17 +1,9 @@
 package com.gu.tableversions.examples
 
-import java.sql.{Date, Timestamp}
-
+import com.gu.tableversions.spark.SparkHiveSuite
 import org.scalatest.{FlatSpec, Matchers}
 
-class MultiLevelPartitionedTableVersioningSpec extends FlatSpec with Matchers {
-
-  case class AdImpression(
-      id: String,
-      impressionTimestamp: Timestamp,
-      eventTimestamp: Timestamp,
-      impressionDate: Date,
-      eventDate: Date)
+class AdImpressionLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
   "Writing multiple versions of a snapshot dataset" should "produce distinct versions" in {
 
@@ -22,7 +14,7 @@ class MultiLevelPartitionedTableVersioningSpec extends FlatSpec with Matchers {
     // Query to check we have the right data
     // Check that the underlying storage is in the right place
 
-    // Rewrite impressions to change the date for one of the event dates
+    // Rewrite impressions to change the content for one of the event dates
 
     // Query to check we see the updated data
 
