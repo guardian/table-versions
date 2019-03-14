@@ -21,7 +21,7 @@ class PageviewLoader(tableName: String, tableUri: String)(implicit val spark: Sp
     val ddl = s"""CREATE EXTERNAL TABLE IF NOT EXISTS $tableName (
                  |  `id` string,
                  |  `path` string,
-                 |  `timestamp` string
+                 |  `timestamp` timestamp
                  |)
                  |PARTITIONED BY (`date` date)
                  |STORED AS parquet
@@ -38,7 +38,7 @@ class PageviewLoader(tableName: String, tableUri: String)(implicit val spark: Sp
   def insert(dataset: Dataset[Pageview])(implicit spark: SparkSession): Unit = {
     // Currently, this just uses the basic implementation of writing data to tables via Hive.
     // This will not do any versioning as-is - this is the implementation we need to replace
-    // with new functionality in this library.
+    // with new functionality in this project.
     dataset.write
       .mode(SaveMode.Overwrite)
       .insertInto(tableName)
@@ -53,13 +53,7 @@ object PageviewLoader {
   object Pageview {
 
     def apply(id: String, path: String, timestamp: Timestamp): Pageview =
-      Pageview(id, path, timestamp, timestampToUtcDate(timestamp))
-
-    private def timestampToUtcDate(timestamp: Timestamp): Date = {
-      val zoneId = ZoneId.of("UTC")
-      val zonedDateTime = ZonedDateTime.ofInstant(timestamp.toInstant, zoneId)
-      java.sql.Date.valueOf(zonedDateTime.toLocalDate)
-    }
+      Pageview(id, path, timestamp, DateTime.timestampToUtcDate(timestamp))
 
   }
 

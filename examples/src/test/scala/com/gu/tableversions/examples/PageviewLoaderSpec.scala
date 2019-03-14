@@ -16,7 +16,6 @@ class PageviewLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
     import spark.implicits._
 
     val loader = new PageviewLoader(s"$schema.pageview", tableUri)
-
     loader.initTable()
 
     val pageviewsDay1 = List(
@@ -88,8 +87,8 @@ class PageviewLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
     spark.read.parquet(tableUri + "2019-03-14/v1").as[Pageview].collect() should contain theSameElementsAs pageviewsDay2
   }
 
-  def versionDirs(folderUri: String, partition: String): List[String] = {
-    val dir = Paths.get(new URI(folderUri))
+  def versionDirs(tableUri: String, partition: String): List[String] = {
+    val dir = Paths.get(new URI(tableUri))
     dir.toFile.list().toList.filter(_.matches("v\\d+"))
   }
 

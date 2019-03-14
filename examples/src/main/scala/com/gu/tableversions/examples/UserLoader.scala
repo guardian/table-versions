@@ -31,7 +31,7 @@ class UserLoader(tableName: String, tableUri: String)(implicit val spark: SparkS
   def insert(dataset: Dataset[User])(implicit spark: SparkSession): Unit = {
     // Currently, this just uses the basic implementation of writing data to tables via Hive.
     // This will not do any versioning as-is - this is the implementation we need to replace
-    // with new functionality in this library.
+    // with new functionality in this project.
     dataset.write.mode(SaveMode.Overwrite).parquet(tableUri)
     spark.sql(s"REFRESH TABLE $tableName")
     ()
