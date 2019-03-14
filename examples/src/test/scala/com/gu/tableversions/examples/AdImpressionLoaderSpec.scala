@@ -5,7 +5,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class AdImpressionLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
-  "Writing multiple versions of a snapshot dataset" should "produce distinct versions" in {
+  "Writing multiple versions of a snapshot dataset" should "produce distinct versions" ignore {
 
     // Write ad impressions in turn for event dates 1, 2, and 3,
     // where each date contains some impressions for that date and some from the previous day(s)
