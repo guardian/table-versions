@@ -11,7 +11,7 @@ class PageviewLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
   import PageviewLoader._
 
-  "Writing multiple versions of a date partitioned datatset" should "produce distinct versions" ignore {
+  "Writing multiple versions of a date partitioned dataset" should "produce distinct partiton versions" ignore {
 
     import spark.implicits._
 

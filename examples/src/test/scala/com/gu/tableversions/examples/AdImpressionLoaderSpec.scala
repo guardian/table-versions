@@ -9,7 +9,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class AdImpressionLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
-  "Writing multiple versions of a snapshot dataset" should "produce distinct versions" in {
+  "Writing multiple versions of a dataset with multiple partition columns" should "produce distinct partiton versions" ignore {
 
     import spark.implicits._
 
