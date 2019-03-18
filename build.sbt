@@ -24,7 +24,6 @@ lazy val commonSettings = Seq(
 
 lazy val testSettings = Defaults.itSettings ++ Seq(
   testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDF"),
-  parallelExecution in Test := false,
   parallelExecution in IntegrationTest := false,
   fork in IntegrationTest := true
 )
@@ -68,5 +67,8 @@ lazy val examples = project
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= sparkDependencies
+  )
+  .settings(
+    parallelExecution in Test := false
   )
   .dependsOn(core, metastore, dynamodb, spark % "compile->compile;test->test")
