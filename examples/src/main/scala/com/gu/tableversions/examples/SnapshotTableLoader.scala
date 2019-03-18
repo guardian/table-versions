@@ -2,7 +2,7 @@ package com.gu.tableversions.examples
 
 import java.net.URI
 
-import com.gu.tableversions.examples.UserLoader.User
+import com.gu.tableversions.examples.SnapshotTableLoader.User
 import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
 
 /**
@@ -12,7 +12,7 @@ import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
   * @param tableName The fully qualified table name
   * @param tableLocation The location where the table data will be stored
   */
-class UserLoader(tableName: String, tableLocation: URI)(implicit val spark: SparkSession) {
+class SnapshotTableLoader(tableName: String, tableLocation: URI)(implicit val spark: SparkSession) {
 
   import spark.implicits._
 
@@ -44,7 +44,7 @@ class UserLoader(tableName: String, tableLocation: URI)(implicit val spark: Spar
 
 }
 
-object UserLoader {
+object SnapshotTableLoader {
 
   case class User(id: String, name: String, email: String)
 

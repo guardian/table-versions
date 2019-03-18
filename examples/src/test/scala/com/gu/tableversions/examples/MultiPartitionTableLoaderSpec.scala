@@ -3,17 +3,17 @@ package com.gu.tableversions.examples
 import java.nio.file.Path
 import java.sql.{Date, Timestamp}
 
-import com.gu.tableversions.examples.AdImpressionLoader.AdImpression
+import com.gu.tableversions.examples.MultiPartitionTableLoader.AdImpression
 import com.gu.tableversions.spark.SparkHiveSuite
 import org.scalatest.{FlatSpec, Matchers}
 
-class AdImpressionLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
+class MultiPartitionTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
   "Writing multiple versions of a dataset with multiple partition columns" should "produce distinct partiton versions" in {
 
     import spark.implicits._
 
-    val loader = new AdImpressionLoader(s"$schema.ad_impressions", tableUri)
+    val loader = new MultiPartitionTableLoader(s"$schema.ad_impressions", tableUri)
     loader.initTable()
 
     val impressionsDay1 = List(

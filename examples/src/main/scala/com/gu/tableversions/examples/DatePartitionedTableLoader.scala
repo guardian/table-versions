@@ -3,7 +3,7 @@ package com.gu.tableversions.examples
 import java.net.URI
 import java.sql.{Date, Timestamp}
 
-import com.gu.tableversions.examples.PageviewLoader.Pageview
+import com.gu.tableversions.examples.DatePartitionedTableLoader.Pageview
 import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
 
 /**
@@ -13,7 +13,7 @@ import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
   * @param tableName the fully qualified table name that will be populated by this loader
   * @param tableLocation The location where the table data will be stored
   */
-class PageviewLoader(tableName: String, tableLocation: URI)(implicit val spark: SparkSession) {
+class DatePartitionedTableLoader(tableName: String, tableLocation: URI)(implicit val spark: SparkSession) {
 
   import spark.implicits._
 
@@ -46,7 +46,7 @@ class PageviewLoader(tableName: String, tableLocation: URI)(implicit val spark: 
 
 }
 
-object PageviewLoader {
+object DatePartitionedTableLoader {
 
   case class Pageview(id: String, path: String, timestamp: Timestamp, date: Date)
 

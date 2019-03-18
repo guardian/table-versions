@@ -6,16 +6,16 @@ import java.nio.file.Paths
 import com.gu.tableversions.spark.SparkHiveSuite
 import org.scalatest.{FlatSpec, Matchers}
 
-class UserLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
+class SnapshotTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
-  import UserLoader._
+  import SnapshotTableLoader._
 
   val tableName = s"$schema.identity"
 
   "Writing multiple versions of a snapshot dataset" should "produce distinct versions" in {
     import spark.implicits._
 
-    val loader = new UserLoader(tableName, tableUri)
+    val loader = new SnapshotTableLoader(tableName, tableUri)
     loader.initTable()
 
     // Write the data to the table

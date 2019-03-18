@@ -3,7 +3,7 @@ package com.gu.tableversions.examples
 import java.net.URI
 import java.sql.{Date, Timestamp}
 
-import com.gu.tableversions.examples.AdImpressionLoader.AdImpression
+import com.gu.tableversions.examples.MultiPartitionTableLoader.AdImpression
 import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
 
 /**
@@ -13,7 +13,7 @@ import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
   * @param tableName the fully qualified table name that will be populated by this loader
   * @param tableLocation The location where the table data will be stored
   */
-class AdImpressionLoader(tableName: String, tableLocation: URI)(implicit val spark: SparkSession) {
+class MultiPartitionTableLoader(tableName: String, tableLocation: URI)(implicit val spark: SparkSession) {
 
   import spark.implicits._
 
@@ -46,7 +46,7 @@ class AdImpressionLoader(tableName: String, tableLocation: URI)(implicit val spa
 
 }
 
-object AdImpressionLoader {
+object MultiPartitionTableLoader {
 
   case class AdImpression(
       user_id: String,

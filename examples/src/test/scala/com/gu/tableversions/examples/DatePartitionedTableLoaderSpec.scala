@@ -7,15 +7,15 @@ import java.sql.Timestamp
 import com.gu.tableversions.spark.SparkHiveSuite
 import org.scalatest.{FlatSpec, Matchers}
 
-class PageviewLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
+class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
-  import PageviewLoader._
+  import DatePartitionedTableLoader._
 
   "Writing multiple versions of a date partitioned dataset" should "produce distinct partiton versions" in {
 
     import spark.implicits._
 
-    val loader = new PageviewLoader(s"$schema.pageview", tableDir.toUri)
+    val loader = new DatePartitionedTableLoader(s"$schema.pageview", tableDir.toUri)
     loader.initTable()
 
     val pageviewsDay1 = List(
