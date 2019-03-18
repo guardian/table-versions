@@ -1,7 +1,7 @@
 package com.gu.tableversions.examples
 
+import java.net.URI
 import java.sql.{Date, Timestamp}
-import java.time.{ZoneId, ZonedDateTime}
 
 import com.gu.tableversions.examples.PageviewLoader.Pageview
 import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
@@ -11,9 +11,9 @@ import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
   * It demonstrates how individual partitions in such a table can be updated using versioning.
   *
   * @param tableName the fully qualified table name that will be populated by this loader
-  * @param tableUri The location where the table data will be stored
+  * @param tableLocation The location where the table data will be stored
   */
-class PageviewLoader(tableName: String, tableUri: String)(implicit val spark: SparkSession) {
+class PageviewLoader(tableName: String, tableLocation: URI)(implicit val spark: SparkSession) {
 
   import spark.implicits._
 
@@ -25,7 +25,7 @@ class PageviewLoader(tableName: String, tableUri: String)(implicit val spark: Sp
                  |)
                  |PARTITIONED BY (`date` date)
                  |STORED AS parquet
-                 |LOCATION '$tableUri'
+                 |LOCATION '$tableLocation'
     """.stripMargin
 
     spark.sql(ddl)

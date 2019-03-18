@@ -1,5 +1,6 @@
 package com.gu.tableversions.examples
 
+import java.net.URI
 import java.sql.{Date, Timestamp}
 
 import com.gu.tableversions.examples.AdImpressionLoader.AdImpression
@@ -10,9 +11,9 @@ import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
   * It demonstrates how individual partitions in such a table can be updated using versioning.
   *
   * @param tableName the fully qualified table name that will be populated by this loader
-  * @param tableUri The location where the table data will be stored
+  * @param tableLocation The location where the table data will be stored
   */
-class AdImpressionLoader(tableName: String, tableUri: String)(implicit val spark: SparkSession) {
+class AdImpressionLoader(tableName: String, tableLocation: URI)(implicit val spark: SparkSession) {
 
   import spark.implicits._
 
@@ -24,7 +25,7 @@ class AdImpressionLoader(tableName: String, tableUri: String)(implicit val spark
                  |)
                  |PARTITIONED BY (`impression_date` date, `processed_date` date)
                  |STORED AS parquet
-                 |LOCATION '$tableUri'
+                 |LOCATION '$tableLocation'
     """.stripMargin
 
     spark.sql(ddl)

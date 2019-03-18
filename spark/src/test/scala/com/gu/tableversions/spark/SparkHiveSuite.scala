@@ -41,11 +41,11 @@ trait SparkHiveSuite extends BeforeAndAfterAll with BeforeAndAfterEach with Lazy
 
   private val rootDir: Path = Files.createDirectories(Paths.get(URI.create(s"file:///tmp/${UUID.randomUUID.toString}")))
 
-  val inputDir: Path = rootDir.resolve("input")
+  val inputDir: Path = rootDir.resolve("input/")
   logger.info(s"Creating SparkHiveSuite in $rootDir")
 
-  val tableDir: Path = rootDir.resolve("table")
-  val tableUri: String = tableDir.toUri.toString
+  val tableDir: Path = rootDir.resolve("table/")
+  val tableUri = tableDir.toUri
 
   val localMetastorePath: String = new File(rootDir.toFile, "metastore").getCanonicalPath
   val localWarehousePath: String = new File(rootDir.toFile, "warehouse").getCanonicalPath

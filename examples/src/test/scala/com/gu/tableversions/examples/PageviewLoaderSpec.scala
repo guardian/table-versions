@@ -11,11 +11,11 @@ class PageviewLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
   import PageviewLoader._
 
-  "Writing multiple versions of a date partitioned dataset" should "produce distinct partiton versions" ignore {
+  "Writing multiple versions of a date partitioned dataset" should "produce distinct partiton versions" in {
 
     import spark.implicits._
 
-    val loader = new PageviewLoader(s"$schema.pageview", tableUri)
+    val loader = new PageviewLoader(s"$schema.pageview", tableDir.toUri)
     loader.initTable()
 
     val pageviewsDay1 = List(
@@ -64,9 +64,9 @@ class PageviewLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
       .where('date === "2019-03-15")
       .collect() should contain theSameElementsAs pageviewsDay3
 
-    versionDirs(tableUri, "2019-03-13") shouldBe List("v1")
-    versionDirs(tableUri, "2019-03-14") shouldBe List("v1")
-    versionDirs(tableUri, "2019-03-15") shouldBe List("v1")
+    versionDirs(tableUri, "date=2019-03-13") shouldBe List("v1")
+    versionDirs(tableUri, "date=2019-03-14") shouldBe List("v1")
+    versionDirs(tableUri, "date=2019-03-15") shouldBe List("v1")
 
     // Rewrite pageviews to remove one of the identity IDs, affecting only day 2
     val updatedPageviewsDay2 = pageviewsDay2.filter(_.id != "user-4")
@@ -76,20 +76,24 @@ class PageviewLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
     loader.pageviews().collect() should contain theSameElementsAs pageviewsDay1 ++ updatedPageviewsDay2 ++ pageviewsDay3
 
     // Check underlying storage that we have both versions for the updated partition
-    versionDirs(tableUri, "2019-03-13") shouldBe List("v1")
-    versionDirs(tableUri, "2019-03-14") shouldBe List("v1", "v2")
-    versionDirs(tableUri, "2019-03-15") shouldBe List("v1")
+    versionDirs(tableUri, "date=2019-03-13") shouldBe List("v1")
+    versionDirs(tableUri, "date=2019-03-14") shouldBe List("v1", "v2")
+    versionDirs(tableUri, "date=2019-03-15") shouldBe List("v1")
 
     // TODO: Query Metastore directly to check what partitions the table has?
     //   (When implementing rollback and creating views on historical versions we could just test that functionality
     //    instead of querying storage directly)
 
-    spark.read.parquet(tableUri + "2019-03-14/v1").as[Pageview].collect() should contain theSameElementsAs pageviewsDay2
+    spark.read
+      .parquet(tableUri.toString + "2019-03-14/v1")
+      .as[Pageview]
+      .collect() should contain theSameElementsAs pageviewsDay2
   }
 
-  def versionDirs(tableUri: String, partition: String): List[String] = {
-    val dir = Paths.get(new URI(tableUri))
-    dir.toFile.list().toList.filter(_.matches("v\\d+"))
+  def versionDirs(tableLocation: URI, partition: String): List[String] = {
+    val dir = Paths.get(s"$tableLocation/$partition")
+    val dirList = Option(dir.toFile.list()).map(_.toList).getOrElse(Nil)
+    dirList.filter(_.matches("v\\d+"))
   }
 
 }

@@ -12,7 +12,7 @@ class UserLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
   val tableName = s"$schema.identity"
 
-  "Writing multiple versions of a snapshot dataset" should "produce distinct versions" ignore {
+  "Writing multiple versions of a snapshot dataset" should "produce distinct versions" in {
     import spark.implicits._
 
     val loader = new UserLoader(tableName, tableUri)
@@ -53,8 +53,8 @@ class UserLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
     oldVersion should contain theSameElementsAs day1TableData
   }
 
-  def versionDirs(folderUri: String): List[String] = {
-    val dir = Paths.get(new URI(folderUri))
+  def versionDirs(tableLocation: URI): List[String] = {
+    val dir = Paths.get(tableLocation)
     dir.toFile.list().toList.filter(_.matches("v\\d+"))
   }
 

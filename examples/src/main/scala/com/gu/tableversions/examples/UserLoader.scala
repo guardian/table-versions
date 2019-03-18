@@ -1,5 +1,7 @@
 package com.gu.tableversions.examples
 
+import java.net.URI
+
 import com.gu.tableversions.examples.UserLoader.User
 import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
 
@@ -8,9 +10,9 @@ import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
   * every time we write to it (no partial updates).
   *
   * @param tableName The fully qualified table name
-  * @param tableUri The location where the table data will be stored
+  * @param tableLocation The location where the table data will be stored
   */
-class UserLoader(tableName: String, tableUri: String)(implicit val spark: SparkSession) {
+class UserLoader(tableName: String, tableLocation: URI)(implicit val spark: SparkSession) {
 
   import spark.implicits._
 
@@ -21,7 +23,7 @@ class UserLoader(tableName: String, tableUri: String)(implicit val spark: SparkS
                  |  `email` string
                  |)
                  |STORED AS parquet
-                 |LOCATION '$tableUri'
+                 |LOCATION '$tableLocation'
     """.stripMargin
 
     spark.sql(ddl)
@@ -32,7 +34,7 @@ class UserLoader(tableName: String, tableUri: String)(implicit val spark: SparkS
     // Currently, this just uses the basic implementation of writing data to tables via Hive.
     // This will not do any versioning as-is - this is the implementation we need to replace
     // with new functionality in this project.
-    dataset.write.mode(SaveMode.Overwrite).parquet(tableUri)
+    dataset.write.mode(SaveMode.Overwrite).parquet(tableLocation.toString)
     spark.sql(s"REFRESH TABLE $tableName")
     ()
   }

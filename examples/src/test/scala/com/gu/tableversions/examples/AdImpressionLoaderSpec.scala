@@ -9,7 +9,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class AdImpressionLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
-  "Writing multiple versions of a dataset with multiple partition columns" should "produce distinct partiton versions" ignore {
+  "Writing multiple versions of a dataset with multiple partition columns" should "produce distinct partiton versions" in {
 
     import spark.implicits._
 
@@ -59,7 +59,7 @@ class AdImpressionLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite 
 
   }
 
-  def partitionVersions(tableDir: Path): Map[(String, String), List[String]] = {
+  def partitionVersions(tableLocation: Path): Map[(String, String), List[String]] = {
 
     def datePartitions(dir: Path): List[String] = {
       println(s"Looking for date partitions in '$dir'")
@@ -73,15 +73,15 @@ class AdImpressionLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite 
       dir.toFile.list().toList.filter(_.matches("v\\d+"))
     }
 
-    val impressionDatePartitions: List[String] = datePartitions(tableDir)
+    val impressionDatePartitions: List[String] = datePartitions(tableLocation)
 
     val allPartitions: List[(String, String)] = impressionDatePartitions.flatMap(impressionDate =>
-      datePartitions(tableDir.resolve(impressionDate)).map(processedDate => processedDate -> impressionDate))
+      datePartitions(tableLocation.resolve(impressionDate)).map(processedDate => processedDate -> impressionDate))
 
     allPartitions
       .map {
         case (processedDate, impressionDate) =>
-          (processedDate, impressionDate) -> versions(tableDir.resolve(impressionDate).resolve(processedDate))
+          (processedDate, impressionDate) -> versions(tableLocation.resolve(impressionDate).resolve(processedDate))
       }
       .toMap
       .filter { case (_, versions) => versions.nonEmpty }
