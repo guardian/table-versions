@@ -12,7 +12,7 @@ class SnapshotTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite
 
   val tableName = s"$schema.identity"
 
-  "Writing multiple versions of a snapshot dataset" should "produce distinct versions" in {
+  "Writing multiple versions of a snapshot dataset" should "produce distinct versions" ignore {
     import spark.implicits._
 
     val loader = new SnapshotTableLoader(tableName, tableUri)
