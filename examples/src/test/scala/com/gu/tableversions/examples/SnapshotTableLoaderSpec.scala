@@ -3,6 +3,9 @@ package com.gu.tableversions.examples
 import java.net.URI
 import java.nio.file.Paths
 
+import cats.effect.IO
+import com.gu.tableversions.core.{InMemoryTableVersions, TableName}
+import com.gu.tableversions.metastore.InMemoryMetastore
 import com.gu.tableversions.spark.SparkHiveSuite
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -10,12 +13,15 @@ class SnapshotTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite
 
   import SnapshotTableLoader._
 
-  val tableName = s"$schema.identity"
+  val tableName = TableName(schema, "identity")
 
   "Writing multiple versions of a snapshot dataset" should "produce distinct versions" ignore {
     import spark.implicits._
 
-    val loader = new SnapshotTableLoader(tableName, tableUri)
+    val tableVersions = new InMemoryTableVersions[IO]()
+    val metastore = new InMemoryMetastore[IO]()
+
+    val loader = new SnapshotTableLoader(tableName, tableUri, tableVersions, metastore)
     loader.initTable()
 
     // Write the data to the table
