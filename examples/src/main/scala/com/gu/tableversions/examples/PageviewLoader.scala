@@ -35,7 +35,7 @@ class PageviewLoader(tableName: String, tableLocation: URI)(implicit val spark: 
   def pageviews(): Dataset[Pageview] =
     spark.table(tableName).as[Pageview]
 
-  def insert(dataset: Dataset[Pageview])(implicit spark: SparkSession): Unit = {
+  def insert(dataset: Dataset[Pageview]): Unit = {
     // Currently, this just uses the basic implementation of writing data to tables via Hive.
     // This will not do any versioning as-is - this is the implementation we need to replace
     // with new functionality in this project.

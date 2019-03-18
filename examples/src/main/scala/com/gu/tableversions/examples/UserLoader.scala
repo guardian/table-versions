@@ -30,7 +30,7 @@ class UserLoader(tableName: String, tableLocation: URI)(implicit val spark: Spar
     ()
   }
 
-  def insert(dataset: Dataset[User])(implicit spark: SparkSession): Unit = {
+  def insert(dataset: Dataset[User]): Unit = {
     // Currently, this just uses the basic implementation of writing data to tables via Hive.
     // This will not do any versioning as-is - this is the implementation we need to replace
     // with new functionality in this project.

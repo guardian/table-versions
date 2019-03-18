@@ -32,7 +32,7 @@ class AdImpressionLoader(tableName: String, tableLocation: URI)(implicit val spa
     ()
   }
 
-  def insert(dataset: Dataset[AdImpression])(implicit spark: SparkSession): Unit = {
+  def insert(dataset: Dataset[AdImpression]): Unit = {
     // Currently, this just uses the basic implementation of writing data to tables via Hive.
     // This will not do any versioning as-is - this is the implementation we need to replace
     // with new functionality in this project.
