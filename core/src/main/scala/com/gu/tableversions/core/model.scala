@@ -9,13 +9,23 @@ final case class Partition(columnValues: List[Partition.ColumnValue]) {
 
   /** Given a base path for the table, return the path to the partition. */
   def resolvePath(tableLocation: URI): URI = {
-    val partitionsSuffix =
-      columnValues.map(columnValue => s"${columnValue.column.name}=${columnValue.value}").mkString("/")
-    tableLocation.resolve(partitionsSuffix)
+    if (this == Partition.snapshotPartition) {
+      tableLocation
+    } else {
+      val partitionsSuffix =
+        columnValues.map(columnValue => s"${columnValue.column.name}=${columnValue.value}").mkString("", "/", "/")
+      tableLocation.resolve(partitionsSuffix)
+    }
   }
 }
 
 object Partition {
+
+  /** Convenience constructor for single column partitions. */
+  def apply(columnValue: ColumnValue): Partition = Partition(List(columnValue))
+
+  /** Convenience constructor for single column partitions. */
+  def apply(column: PartitionColumn, value: String): Partition = Partition(List(ColumnValue(column, value)))
 
   case class PartitionColumn(name: String) extends AnyVal
 
@@ -30,6 +40,13 @@ object Partition {
   * A partition schema describes the fields used for partitions of a table
   */
 final case class PartitionSchema(columns: List[Partition.PartitionColumn])
+
+object PartitionSchema {
+
+  // The special case partition that represents the root partition of a snapshot table.
+  val snapshot: PartitionSchema = PartitionSchema(Nil)
+
+}
 
 //
 // Versions

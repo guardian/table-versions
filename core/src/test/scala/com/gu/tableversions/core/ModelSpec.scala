@@ -25,7 +25,7 @@ class ModelSpec extends FlatSpec with Matchers {
            Partition.ColumnValue(PartitionColumn("processed_date"), "2019-01-21")))
 
     partition.resolvePath(tableLocation) shouldBe new URI(
-      "s3://bucket/data/event_date=2019-01-20/processed_date=2019-01-21")
+      "s3://bucket/data/event_date=2019-01-20/processed_date=2019-01-21/")
   }
 
 }
