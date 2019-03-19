@@ -7,6 +7,7 @@ import cats.effect.IO
 import com.gu.tableversions.core.TableVersions._
 import com.gu.tableversions.core._
 import com.gu.tableversions.examples.SnapshotTableLoader.User
+import com.gu.tableversions.metastore.Metastore.TableChanges
 import com.gu.tableversions.metastore.{Metastore, VersionPaths}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
@@ -47,9 +48,9 @@ class SnapshotTableLoader(
 
   def insert(dataset: Dataset[User], message: String): Unit = {
 
-    val update: IO[TableVersion] = for {
+    val update: IO[(TableVersion, TableChanges)] = for {
       // Get next version to write
-      newPartitionVersions <- tableVersions.nextVersions(table, PartitionSchema.snapshot.columns)
+      newPartitionVersions <- tableVersions.nextVersions(table, Partition.snapshotPartition :: Nil)
       newVersion = newPartitionVersions.head
 
       // Snapshot tables only use the base path of the table and the version number
@@ -63,14 +64,20 @@ class SnapshotTableLoader(
         tableVersions.commit(
           TableUpdate(UserId("test user"), UpdateMessage(message), Instant.now(), newPartitionVersions)))
 
-      // Get latest version details and sync the Metastore to match, effectively switching the table to the new version.
-      latestVersion <- tableVersions.currentVersions(table)
-      _ <- metastore.syncVersions(table, latestVersion)
+      // Get latest version details and Metastore table details and sync the Metastore to match,
+      // effectively switching the table to the new version.
+      latestVersion <- tableVersions.currentVersion(table)
+      metastoreVersion <- metastore.currentVersion(table)
+      metastoreUpdate = Metastore.computeChanges(latestVersion, metastoreVersion)
 
-    } yield latestVersion
+      _ <- metastore.update(table, metastoreUpdate)
 
-    val latestVersion = update.unsafeRunSync()
+    } yield (latestVersion, metastoreUpdate)
+
+    val (latestVersion, metastoreChanges) = update.unsafeRunSync()
+
     logger.info(s"Updated table $table, new version details:\n$latestVersion")
+    logger.info(s"Applied the the following changes to sync the Metastore:\n$metastoreChanges")
   }
 
   def users(): Dataset[User] =

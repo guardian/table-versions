@@ -9,6 +9,5 @@ class HiveMetastore[F[_]] extends Metastore[F] {
 
   override def currentVersion(table: TableName): F[TableVersion] = ???
 
-  override def syncVersions(table: TableName, latestVersion: TableVersion): F[Unit] = ???
-
+  override def update(table: TableName, changes: Metastore.TableChanges): F[Unit] = ???
 }

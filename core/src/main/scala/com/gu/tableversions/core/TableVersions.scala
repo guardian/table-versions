@@ -16,10 +16,10 @@ trait TableVersions[F[_]] {
   def init(table: TableName): F[Unit]
 
   /** Get details about partition versions in a table. */
-  def currentVersions(table: TableName): F[TableVersion]
+  def currentVersion(table: TableName): F[TableVersion]
 
   /** Get a description of which version to write to next for the given partitions of a table. */
-  def nextVersions(table: TableName, partitionColumns: List[PartitionColumn]): F[List[PartitionVersion]]
+  def nextVersions(table: TableName, partitions: List[Partition]): F[List[PartitionVersion]]
 
   /**
     * Update partition versions to the given versions.

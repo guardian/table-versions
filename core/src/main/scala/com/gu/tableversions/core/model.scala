@@ -1,34 +1,49 @@
 package com.gu.tableversions.core
 
-//
-// Partitions and partition versions
-//
+import java.net.URI
 
-/** A partition schema describes the fields used for partitions of a table */
-case class PartitionColumn(name: String) extends AnyVal
+/**
+  * A Partition represents a concrete partition of a table, i.e. a partition column with a specific value.
+  */
+final case class Partition(columnValues: List[Partition.ColumnValue]) {
 
-case class PartitionSchema(columns: List[PartitionColumn])
-
-object PartitionSchema {
-  // The special case schema for snapshot tables, i.e. ones without partition, only a single root.
-  val snapshot: PartitionSchema = PartitionSchema(Nil)
+  /** Given a base path for the table, return the path to the partition. */
+  def resolvePath(tableLocation: URI): URI = {
+    val partitionsSuffix =
+      columnValues.map(columnValue => s"${columnValue.column.name}=${columnValue.value}").mkString("/")
+    tableLocation.resolve(partitionsSuffix)
+  }
 }
 
-case class ColumnValue(column: PartitionColumn, value: String)
+object Partition {
 
-case class Partition(columnValues: Seq[ColumnValue])
+  case class PartitionColumn(name: String) extends AnyVal
 
-case class VersionNumber(number: Int) extends AnyVal
+  case class ColumnValue(column: PartitionColumn, value: String)
 
-case class PartitionVersion(partition: Partition, version: VersionNumber)
+  // The special case partition that represents the root partition of a snapshot table.
+  val snapshotPartition: Partition = Partition(Nil)
+
+}
+
+/**
+  * A partition schema describes the fields used for partitions of a table
+  */
+final case class PartitionSchema(columns: List[Partition.PartitionColumn])
 
 //
-// Tables
+// Versions
 //
 
-case class TableName(schema: String, name: String) {
+final case class VersionNumber(number: Int) extends AnyVal
+
+final case class PartitionVersion(partition: Partition, version: VersionNumber)
+
+final case class TableName(schema: String, name: String) {
   def fullyQualifiedName: String = s"$schema.$name"
 }
 
-/** The complete set of version information for all partitions in a table. */
-case class TableVersion(partitionVersions: List[PartitionVersion])
+/**
+  * The complete set of version information for all partitions in a table.
+  */
+final case class TableVersion(partitionVersions: List[PartitionVersion])

@@ -9,7 +9,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class MultiPartitionTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
-  "Writing multiple versions of a dataset with multiple partition columns" should "produce distinct partiton versions" ignore {
+  "Writing multiple versions of a dataset with multiple partition columns" should "produce distinct partition versions" ignore {
 
     import spark.implicits._
 

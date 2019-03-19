@@ -12,10 +12,10 @@ object VersionPaths {
   /**
     * @return a path for a given partition version and base path
     */
-  def pathFor(basePath: URI, newVersion: VersionNumber): URI = {
+  def pathFor(partitionPath: URI, newVersion: VersionNumber): URI = {
     def normalised(path: String): String = if (path.endsWith("/")) path else path + "/"
     def versioned(path: String): String = if (newVersion.number <= 0) path else s"${path}v${newVersion.number}"
-    new URI(versioned(normalised(basePath.toString)))
+    new URI(versioned(normalised(partitionPath.toString)))
   }
 
 }

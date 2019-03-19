@@ -2,23 +2,37 @@ package com.gu.tableversions.examples
 
 import java.net.URI
 import java.sql.{Date, Timestamp}
+import java.time.Instant
 
+import cats.effect.IO
+import com.gu.tableversions.core.TableVersions.{TableUpdate, UpdateMessage, UserId}
+import com.gu.tableversions.core._
 import com.gu.tableversions.examples.DatePartitionedTableLoader.Pageview
-import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
+import com.gu.tableversions.metastore.{Metastore, VersionPaths}
+import com.gu.tableversions.spark.VersionedDataset
+import com.typesafe.scalalogging.LazyLogging
+import org.apache.spark.sql.{Dataset, SparkSession}
 
 /**
   * This example contains code that writes example event data to a table that has a single date partition.
   * It demonstrates how individual partitions in such a table can be updated using versioning.
   *
-  * @param tableName the fully qualified table name that will be populated by this loader
+  * @param table the fully qualified table name that will be populated by this loader
   * @param tableLocation The location where the table data will be stored
   */
-class DatePartitionedTableLoader(tableName: String, tableLocation: URI)(implicit val spark: SparkSession) {
+class DatePartitionedTableLoader(
+    table: TableName,
+    tableLocation: URI,
+    tablePartitionSchema: PartitionSchema,
+    tableVersions: TableVersions[IO],
+    metastore: Metastore[IO])(implicit val spark: SparkSession)
+    extends LazyLogging {
 
   import spark.implicits._
 
   def initTable(): Unit = {
-    val ddl = s"""CREATE EXTERNAL TABLE IF NOT EXISTS $tableName (
+    // Create table schema in metastore
+    val ddl = s"""CREATE EXTERNAL TABLE IF NOT EXISTS ${table.fullyQualifiedName} (
                  |  `id` string,
                  |  `path` string,
                  |  `timestamp` timestamp
@@ -29,19 +43,54 @@ class DatePartitionedTableLoader(tableName: String, tableLocation: URI)(implicit
     """.stripMargin
 
     spark.sql(ddl)
-    ()
+
+    // Initialise version tracking for table
+    tableVersions.init(table).unsafeRunSync()
   }
 
   def pageviews(): Dataset[Pageview] =
-    spark.table(tableName).as[Pageview]
+    spark.table(table.fullyQualifiedName).as[Pageview]
 
-  def insert(dataset: Dataset[Pageview]): Unit = {
-    // Currently, this just uses the basic implementation of writing data to tables via Hive.
-    // This will not do any versioning as-is - this is the implementation we need to replace
-    // with new functionality in this project.
-    dataset.write
-      .mode(SaveMode.Overwrite)
-      .insertInto(tableName)
+  def insert(dataset: Dataset[Pageview], message: String): Unit = {
+
+    // Find the partition values in the given dataset
+    val datasetPartitions: List[Partition] = VersionedDataset.partitionValues(dataset, tablePartitionSchema)
+
+    val update = for {
+      // Get working version numbers for the partitions of the dataset
+      workingVersions <- tableVersions.nextVersions(table, datasetPartitions)
+
+      versionByPartition: Map[Partition, VersionNumber] = workingVersions.map(v => v.partition -> v.version).toMap
+
+      // Find paths for each partitions
+      partitionPaths: Map[Partition, URI] = datasetPartitions.map { partition =>
+        val partitionBasePath = partition.resolvePath(tableLocation)
+        partition -> VersionPaths.pathFor(partitionBasePath, versionByPartition(partition))
+      }.toMap
+
+      // Write dataset partitions to these paths.
+      _ <- VersionedDataset.writeVersionedPartitions(dataset, partitionPaths)
+
+      // Commit partitions
+      _ <- tableVersions.commit(
+        TableUpdate(UserId("test user"), UpdateMessage(message), Instant.now(), workingVersions))
+
+      // Get updated version details for table
+      latestTableVersion <- tableVersions.currentVersion(table)
+
+      // Get latest state of table in Metastore and compute the changes to apply
+      metastoreTable <- metastore.currentVersion(table)
+      metastoreChanges = Metastore.computeChanges(metastoreTable, latestTableVersion)
+
+      // Sync Metastore to match
+      _ <- metastore.update(table, metastoreChanges)
+
+    } yield (latestTableVersion, metastoreChanges)
+
+    val (latestTableVersion, metastoreChanges) = update.unsafeRunSync()
+
+    logger.info(s"Updated table $table, new version details:\n$latestTableVersion")
+    logger.info(s"Applied the the following changes to sync the Metastore:\n$metastoreChanges")
   }
 
 }
