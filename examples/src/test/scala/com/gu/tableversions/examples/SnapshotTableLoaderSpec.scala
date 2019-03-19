@@ -30,7 +30,7 @@ class SnapshotTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite
       User("user-2", "Bob", "bob@mail.com"),
       User("user-3", "Carol", "carol@mail.com")
     )
-    loader.insert(identitiesDay1.toDS().coalesce(2))
+    loader.insert(identitiesDay1.toDS().coalesce(2), "Committing first version from test")
 
     // Query the table to make sure we have the right data
     val day1TableData = loader.users().collect()
@@ -45,7 +45,7 @@ class SnapshotTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite
       User("user-3", "Carol", "carol@othermail.com"),
       User("user-4", "Dave", "dave@mail.com")
     )
-    loader.insert(identitiesDay2.toDS().coalesce(2))
+    loader.insert(identitiesDay2.toDS().coalesce(2), "Committing second version from test")
 
     // Query it to make sure we have the right data
     val day2TableData = loader.users().collect()

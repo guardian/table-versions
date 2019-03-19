@@ -4,6 +4,7 @@ import java.net.URI
 import java.time.Instant
 
 import cats.effect.IO
+import com.gu.tableversions.core.TableVersions._
 import com.gu.tableversions.core._
 import com.gu.tableversions.examples.SnapshotTableLoader.User
 import com.gu.tableversions.metastore.{Metastore, VersionPaths}
@@ -28,6 +29,7 @@ class SnapshotTableLoader(
   import spark.implicits._
 
   def initTable(): Unit = {
+    // Create table schema in metastore
     val ddl = s"""CREATE EXTERNAL TABLE IF NOT EXISTS ${table.fullyQualifiedName} (
                  |  `id` string,
                  |  `name` string,
@@ -38,10 +40,12 @@ class SnapshotTableLoader(
     """.stripMargin
 
     spark.sql(ddl)
-    ()
+
+    // Initialise version tracking for table
+    tableVersions.init(table).unsafeRunSync()
   }
 
-  def insert(dataset: Dataset[User]): Unit = {
+  def insert(dataset: Dataset[User], message: String): Unit = {
 
     val update: IO[TableVersion] = for {
       // Get next version to write
@@ -57,10 +61,7 @@ class SnapshotTableLoader(
       // Commit written version
       _ <- IO(
         tableVersions.commit(
-          TableUpdate(UserId("test user"),
-                      UpdateMessage("Committing version from test"),
-                      Instant.now(),
-                      newPartitionVersions)))
+          TableUpdate(UserId("test user"), UpdateMessage(message), Instant.now(), newPartitionVersions)))
 
       // Get latest version details and sync the Metastore to match, effectively switching the table to the new version.
       latestVersion <- tableVersions.currentVersions(table)
