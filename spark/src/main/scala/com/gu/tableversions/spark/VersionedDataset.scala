@@ -18,7 +18,7 @@ object VersionedDataset {
       List(Partition.snapshotPartition)
     } else {
       // Query dataset for partitions
-      // NOTE: this implementation has not been optimised
+      // NOTE: this implementation has not been optimised yet
       val partitionColumnsList = partitionSchema.columns.map(_.name).mkString(", ")
       val partitionsDf = dataset.selectExpr(s"$partitionColumnsList").distinct()
       val partitionRows = partitionsDf.collect().toList
@@ -40,11 +40,25 @@ object VersionedDataset {
 
   /**
     * Write the given partitioned dataset, storing each partition in the associated path.
-    *
-    * (A really noddy implementation for for-each'ing over each partition would be fine for now,
-    *  we can look into a more clever and performant solution later)
     */
-  // TODO: Probably want to take a few more parameters, e.g. format...
-  def writeVersionedPartitions[T](dataset: Dataset[T], partitionPaths: Map[Partition, URI]): IO[Unit] = ???
+  def writeVersionedPartitions[T](dataset: Dataset[T], partitionPaths: Map[Partition, URI]): IO[Unit] = IO {
+
+    // This is a slow and inefficient implementation that writes each partition in sequence,
+    // we can look into a more performant solution later.
+
+    def filteredForPartition(partition: Partition): Dataset[T] =
+      partition.columnValues.foldLeft(dataset) {
+        case (filteredDataset, partitionColumn) =>
+          filteredDataset.where(s"${partitionColumn.column.name} = '${partitionColumn.value}'")
+      }
+
+    val datasetsWithPaths = partitionPaths.map { case (partition, path) => filteredForPartition(partition) -> path }
+
+    datasetsWithPaths.foreach {
+      case (datasetForPartition, partitionPath) =>
+        datasetForPartition.write
+          .parquet(partitionPath.toString) // TODO: Take in format parameter. Or a dataset writer?
+    }
+  }
 
 }

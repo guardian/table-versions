@@ -60,13 +60,8 @@ class DatePartitionedTableLoader(
       // Get working version numbers for the partitions of the dataset
       workingVersions <- tableVersions.nextVersions(table, datasetPartitions)
 
-      versionByPartition: Map[Partition, VersionNumber] = workingVersions.map(v => v.partition -> v.version).toMap
-
-      // Find paths for each partitions
-      partitionPaths: Map[Partition, URI] = datasetPartitions.map { partition =>
-        val partitionBasePath = partition.resolvePath(tableLocation)
-        partition -> VersionPaths.pathFor(partitionBasePath, versionByPartition(partition))
-      }.toMap
+      // Resolve the path that each partition should be written to, based on their version
+      partitionPaths = VersionPaths.resolveVersionedPartitionPaths(workingVersions, tableLocation)
 
       // Write dataset partitions to these paths.
       _ <- VersionedDataset.writeVersionedPartitions(dataset, partitionPaths)
