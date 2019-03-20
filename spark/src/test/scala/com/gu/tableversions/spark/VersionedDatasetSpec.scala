@@ -61,27 +61,44 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
     ).toDS()
 
     val partitionPaths: Map[Partition, URI] = Map(
-      Partition(PartitionColumn("date"), "2019-01-15") -> tableUri.resolve("data/date=2019-01-15/v5"),
-      Partition(PartitionColumn("date"), "2019-01-16") -> tableUri.resolve("data/date=2019-01-16/v1"),
-      Partition(PartitionColumn("date"), "2019-01-18") -> tableUri.resolve("data/date=2019-01-18/v3")
+      Partition(PartitionColumn("date"), "2019-01-15") -> tableUri.resolve("date=2019-01-15/v5"),
+      Partition(PartitionColumn("date"), "2019-01-16") -> tableUri.resolve("date=2019-01-16/v1"),
+      Partition(PartitionColumn("date"), "2019-01-18") -> tableUri.resolve("date=2019-01-18/v3")
     )
 
     VersionedDataset.writeVersionedPartitions(dataset, partitionPaths).unsafeRunSync()
 
     // Check that data was written to the right place.
 
-    readDataset[Event](tableUri.resolve("data/date=2019-01-15/v5")).collect() should contain theSameElementsAs List(
+    readDataset[Event](tableUri.resolve("date=2019-01-15/v5")).collect() should contain theSameElementsAs List(
       Event("101", "A", Date.valueOf("2019-01-15")),
       Event("102", "B", Date.valueOf("2019-01-15"))
     )
 
-    readDataset[Event](tableUri.resolve("data/date=2019-01-16/v1")).collect() should contain theSameElementsAs List(
+    readDataset[Event](tableUri.resolve("date=2019-01-16/v1")).collect() should contain theSameElementsAs List(
       Event("103", "A", Date.valueOf("2019-01-16"))
     )
 
-    readDataset[Event](tableUri.resolve("data/date=2019-01-18/v3")).collect() should contain theSameElementsAs List(
+    readDataset[Event](tableUri.resolve("date=2019-01-18/v3")).collect() should contain theSameElementsAs List(
       Event("104", "B", Date.valueOf("2019-01-18"))
     )
+  }
+
+  "Writing a snapshot dataset (with no partitions)" should "store the data in a versioned folder for the whole table" in {
+    val events = List(
+      Event("101", "A", Date.valueOf("2019-01-15")),
+      Event("102", "B", Date.valueOf("2019-01-15")),
+      Event("103", "A", Date.valueOf("2019-01-16")),
+      Event("104", "B", Date.valueOf("2019-01-18"))
+    )
+
+    val partitionPaths: Map[Partition, URI] = Map(
+      Partition.snapshotPartition -> tableUri.resolve("v5")
+    )
+
+    VersionedDataset.writeVersionedPartitions(events.toDS(), partitionPaths).unsafeRunSync()
+
+    readDataset[Event](tableUri.resolve("v5")).collect() should contain theSameElementsAs events
   }
 
   private def readDataset[T <: Product: TypeTag](path: URI): Dataset[T] =

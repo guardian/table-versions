@@ -52,7 +52,11 @@ object VersionedDataset {
           filteredDataset.where(s"${partitionColumn.column.name} = '${partitionColumn.value}'")
       }
 
-    val datasetsWithPaths = partitionPaths.map { case (partition, path) => filteredForPartition(partition) -> path }
+    val datasetsWithPaths: Map[Dataset[T], URI] =
+      if (partitionPaths.keySet == Set(Partition.snapshotPartition))
+        Map(dataset -> partitionPaths.values.head)
+      else
+        partitionPaths.map { case (partition, path) => filteredForPartition(partition) -> path }
 
     datasetsWithPaths.foreach {
       case (datasetForPartition, partitionPath) =>

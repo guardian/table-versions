@@ -4,7 +4,8 @@ import java.net.URI
 import java.nio.file.Paths
 
 import cats.effect.IO
-import com.gu.tableversions.core.{InMemoryTableVersions, TableName}
+import com.gu.tableversions.core.Partition.PartitionColumn
+import com.gu.tableversions.core.{InMemoryTableVersions, Partition, PartitionSchema, TableName}
 import com.gu.tableversions.metastore.HiveMetastore
 import com.gu.tableversions.spark.SparkHiveSuite
 import org.scalatest.{FlatSpec, Matchers}
@@ -21,7 +22,10 @@ class SnapshotTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite
     val tableVersions = new InMemoryTableVersions[IO]()
     val metastore = new HiveMetastore[IO]()
 
-    val loader = new SnapshotTableLoader(tableName, tableUri, tableVersions, metastore)
+    val tablePartitionSchema = PartitionSchema.snapshot
+
+    val loader =
+      new SnapshotTableLoader(tableName, tableUri, tablePartitionSchema, tableVersions, metastore)
     loader.initTable()
 
     // Write the data to the table

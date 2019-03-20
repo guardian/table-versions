@@ -56,8 +56,8 @@ class DatePartitionedTableLoader(
     // Find the partition values in the given dataset
     val datasetPartitions: List[Partition] = VersionedDataset.partitionValues(dataset, tablePartitionSchema)
 
-    val update = for {
-      // Get working version numbers for the partitions of the dataset
+    val update: IO[(TableVersion, Metastore.TableChanges)] = for {
+      // Get next version numbers for the partitions of the dataset
       workingVersions <- tableVersions.nextVersions(table, datasetPartitions)
 
       // Resolve the path that each partition should be written to, based on their version
@@ -70,10 +70,9 @@ class DatePartitionedTableLoader(
       _ <- tableVersions.commit(
         TableUpdate(UserId("test user"), UpdateMessage(message), Instant.now(), workingVersions))
 
-      // Get updated version details for table
+      // Get latest version details and Metastore table details and sync the Metastore to match,
+      // effectively switching the table to the new version.
       latestTableVersion <- tableVersions.currentVersion(table)
-
-      // Get latest state of table in Metastore and compute the changes to apply
       metastoreTable <- metastore.currentVersion(table)
       metastoreChanges = Metastore.computeChanges(metastoreTable, latestTableVersion)
 

@@ -9,8 +9,9 @@ import com.gu.tableversions.core._
 import com.gu.tableversions.examples.SnapshotTableLoader.User
 import com.gu.tableversions.metastore.Metastore.TableChanges
 import com.gu.tableversions.metastore.{Metastore, VersionPaths}
+import com.gu.tableversions.spark.VersionedDataset
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
+import org.apache.spark.sql.{Dataset, SparkSession}
 
 /**
   * This is an example of loading data into a 'snapshot' table, that is, a table where we replace all the content
@@ -23,6 +24,7 @@ import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
 class SnapshotTableLoader(
     table: TableName,
     tableLocation: URI,
+    tablePartitionSchema: PartitionSchema,
     tableVersions: TableVersions[IO],
     metastore: Metastore[IO])(implicit val spark: SparkSession)
     extends LazyLogging {
@@ -46,42 +48,44 @@ class SnapshotTableLoader(
     tableVersions.init(table).unsafeRunSync()
   }
 
+  def users(): Dataset[User] =
+    spark.table(table.fullyQualifiedName).as[User]
+
   def insert(dataset: Dataset[User], message: String): Unit = {
 
-    val update: IO[(TableVersion, TableChanges)] = for {
-      // Get next version to write
-      newPartitionVersions <- tableVersions.nextVersions(table, Partition.snapshotPartition :: Nil)
-      newVersion = newPartitionVersions.head
+    // Find the partition values in the given dataset
+    val datasetPartitions: List[Partition] = VersionedDataset.partitionValues(dataset, tablePartitionSchema)
 
-      // Snapshot tables only use the base path of the table and the version number
-      newPath = VersionPaths.pathFor(tableLocation, newVersion.version)
+    val update: IO[(TableVersion, TableChanges)] = for {
+      // Get next version numbers for the partitions of the dataset
+      workingVersions <- tableVersions.nextVersions(table, datasetPartitions)
+
+      // Resolve the path that each partition should be written to, based on their version
+      partitionPaths = VersionPaths.resolveVersionedPartitionPaths(workingVersions, tableLocation)
 
       // Write Spark dataset to the versioned path
-      _ <- IO(dataset.write.mode(SaveMode.Overwrite).parquet(newPath.toString))
+      _ <- VersionedDataset.writeVersionedPartitions(dataset, partitionPaths)
 
       // Commit written version
-      _ <- IO(
-        tableVersions.commit(
-          TableUpdate(UserId("test user"), UpdateMessage(message), Instant.now(), newPartitionVersions)))
+      _ <- tableVersions.commit(
+        TableUpdate(UserId("test user"), UpdateMessage(message), Instant.now(), workingVersions))
 
       // Get latest version details and Metastore table details and sync the Metastore to match,
       // effectively switching the table to the new version.
-      latestVersion <- tableVersions.currentVersion(table)
+      latestTableVersion <- tableVersions.currentVersion(table)
       metastoreVersion <- metastore.currentVersion(table)
-      metastoreUpdate = Metastore.computeChanges(latestVersion, metastoreVersion)
+      metastoreUpdate = Metastore.computeChanges(latestTableVersion, metastoreVersion)
 
+      // Sync Metastore to match
       _ <- metastore.update(table, metastoreUpdate)
 
-    } yield (latestVersion, metastoreUpdate)
+    } yield (latestTableVersion, metastoreUpdate)
 
     val (latestVersion, metastoreChanges) = update.unsafeRunSync()
 
     logger.info(s"Updated table $table, new version details:\n$latestVersion")
     logger.info(s"Applied the the following changes to sync the Metastore:\n$metastoreChanges")
   }
-
-  def users(): Dataset[User] =
-    spark.table(table.fullyQualifiedName).as[User]
 
 }
 
