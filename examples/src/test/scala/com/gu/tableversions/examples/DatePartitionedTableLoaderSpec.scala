@@ -5,7 +5,8 @@ import java.nio.file.Paths
 import java.sql.Timestamp
 
 import cats.effect.IO
-import com.gu.tableversions.core.{InMemoryTableVersions, Partition, PartitionSchema, TableName}
+import com.gu.tableversions.core.Partition.PartitionColumn
+import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.HiveMetastore
 import com.gu.tableversions.spark.SparkHiveSuite
 import org.scalatest.{FlatSpec, Matchers}
@@ -14,17 +15,20 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
 
   import DatePartitionedTableLoader._
 
-  val tableName = TableName(schema, "pageview")
+  val table = TableDefinition(
+    TableName(schema, "pageview"),
+    tableUri,
+    PartitionSchema(List(PartitionColumn("date")))
+  )
+
   "Writing multiple versions of a date partitioned dataset" should "produce distinct partition versions" ignore {
 
     import spark.implicits._
-
     val tableVersions = new InMemoryTableVersions[IO]()
     val metastore = new HiveMetastore[IO]()
-    val tablePartitionSchema = PartitionSchema(List(Partition.PartitionColumn("date")))
 
     val loader =
-      new DatePartitionedTableLoader(tableName, tableDir.toUri, tablePartitionSchema, tableVersions, metastore)
+      new DatePartitionedTableLoader(table, tableVersions, metastore)
     loader.initTable()
 
     val pageviewsDay1 = List(

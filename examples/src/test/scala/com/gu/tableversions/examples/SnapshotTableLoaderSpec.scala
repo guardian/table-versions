@@ -4,8 +4,7 @@ import java.net.URI
 import java.nio.file.Paths
 
 import cats.effect.IO
-import com.gu.tableversions.core.Partition.PartitionColumn
-import com.gu.tableversions.core.{InMemoryTableVersions, Partition, PartitionSchema, TableName}
+import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.HiveMetastore
 import com.gu.tableversions.spark.SparkHiveSuite
 import org.scalatest.{FlatSpec, Matchers}
@@ -14,7 +13,7 @@ class SnapshotTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite
 
   import SnapshotTableLoader._
 
-  val tableName = TableName(schema, "identity")
+  val table = TableDefinition(TableName(schema, "identity"), tableUri, PartitionSchema.snapshot)
 
   "Writing multiple versions of a snapshot dataset" should "produce distinct versions" ignore {
     import spark.implicits._
@@ -22,10 +21,8 @@ class SnapshotTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite
     val tableVersions = new InMemoryTableVersions[IO]()
     val metastore = new HiveMetastore[IO]()
 
-    val tablePartitionSchema = PartitionSchema.snapshot
-
     val loader =
-      new SnapshotTableLoader(tableName, tableUri, tablePartitionSchema, tableVersions, metastore)
+      new SnapshotTableLoader(table, tableVersions, metastore)
     loader.initTable()
 
     // Write the data to the table

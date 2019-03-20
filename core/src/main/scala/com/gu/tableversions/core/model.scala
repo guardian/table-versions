@@ -56,9 +56,15 @@ final case class VersionNumber(number: Int) extends AnyVal
 
 final case class PartitionVersion(partition: Partition, version: VersionNumber)
 
+//
+// Tables
+//
+
 final case class TableName(schema: String, name: String) {
   def fullyQualifiedName: String = s"$schema.$name"
 }
+
+final case class TableDefinition(name: TableName, location: URI, partitionSchema: PartitionSchema)
 
 /**
   * The complete set of version information for all partitions in a table.
