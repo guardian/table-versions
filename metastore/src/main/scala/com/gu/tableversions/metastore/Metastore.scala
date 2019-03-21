@@ -22,22 +22,25 @@ trait Metastore[F[_]] {
     */
   def update(table: TableName, changes: TableChanges): F[Unit]
 
-}
-
-object Metastore {
-
-  sealed trait TableChanges
-  private[metastore] final case class TableChangeOperations(operations: TableOperation) extends TableChanges
-
-  private[metastore] sealed trait TableOperation
-  final case class AddPartitionOperation(partition: PartitionVersion) extends TableOperation
-  final case class RemovePartitionOperation(partition: PartitionVersion)
-  final case class UpdateTableLocation(tableLocation: URI, versionNumber: VersionNumber)
-
   /**
     * @return the set of changes that need to be applied to the Metastore to convert the `current` table
     *         to the `target` table.
     */
+  def computeChanges(current: TableVersion, target: TableVersion): TableChanges =
+    Metastore.computeChanges(current, target)
+
+}
+
+object Metastore {
+
+  final case class TableChanges(operations: List[TableOperation])
+
+  sealed trait TableOperation
+  final case class AddPartition(partition: PartitionVersion) extends TableOperation
+  final case class UpdatePartitionVersion(partition: PartitionVersion) extends TableOperation
+  final case class RemovePartition(partition: PartitionVersion)
+  final case class UpdateTableLocation(tableLocation: URI, versionNumber: VersionNumber)
+
   def computeChanges(current: TableVersion, target: TableVersion): TableChanges = ???
 
 }

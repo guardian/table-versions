@@ -9,12 +9,13 @@ final case class Partition(columnValues: List[Partition.ColumnValue]) {
 
   /** Given a base path for the table, return the path to the partition. */
   def resolvePath(tableLocation: URI): URI = {
+    def normalised(dir: URI): URI = if (dir.toString.endsWith("/")) dir else new URI(dir.toString + "/")
     if (this == Partition.snapshotPartition) {
       tableLocation
     } else {
       val partitionsSuffix =
         columnValues.map(columnValue => s"${columnValue.column.name}=${columnValue.value}").mkString("", "/", "/")
-      tableLocation.resolve(partitionsSuffix)
+      normalised(tableLocation).resolve(partitionsSuffix)
     }
   }
 }

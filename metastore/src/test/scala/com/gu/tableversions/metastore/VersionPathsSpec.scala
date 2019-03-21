@@ -36,7 +36,20 @@ class VersionPathsSpec extends FlatSpec with Matchers {
       Partition(PartitionColumn("date"), "2019-01-16") -> new URI("s3://bucket/data/date=2019-01-16/v1"),
       Partition(PartitionColumn("date"), "2019-01-18") -> new URI("s3://bucket/data/date=2019-01-18/v3")
     )
+  }
 
+  it should "correctly resolved paths even if the base bath doesn't have a trailing slash" in {
+    val tableLocation = new URI("s3://bucket/data")
+
+    val partitionVersions = List(
+      PartitionVersion(Partition(PartitionColumn("date"), "2019-01-15"), VersionNumber(5))
+    )
+
+    val partitionPaths = VersionPaths.resolveVersionedPartitionPaths(partitionVersions, tableLocation)
+
+    partitionPaths shouldBe Map(
+      Partition(PartitionColumn("date"), "2019-01-15") -> new URI("s3://bucket/data/date=2019-01-15/v5")
+    )
   }
 
 }

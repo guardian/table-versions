@@ -19,6 +19,12 @@ class ModelSpec extends FlatSpec with Matchers {
     partition.resolvePath(tableLocation) shouldBe new URI("s3://bucket/data/date=2019-01-20/")
   }
 
+  it should "work even if the table location doesn't have a trailing slash" in {
+    val tableLocation = new URI("s3://bucket/data")
+    val partition = Partition(List(Partition.ColumnValue(PartitionColumn("date"), "2019-01-20")))
+    partition.resolvePath(tableLocation) shouldBe new URI("s3://bucket/data/date=2019-01-20/")
+  }
+
   "Resolving the path of a partition with multiple partition columns" should "produce path relative to the table location" in {
     val partition = Partition(
       List(Partition.ColumnValue(PartitionColumn("event_date"), "2019-01-20"),

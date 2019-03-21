@@ -1,18 +1,81 @@
 package com.gu.tableversions.spark
 
 import java.net.URI
+import java.time.Instant
 
 import cats.effect.IO
-import com.gu.tableversions.core.{Partition, PartitionSchema}
+import com.gu.tableversions.core.TableVersions.{TableUpdate, UpdateMessage, UserId}
+import com.gu.tableversions.core._
+import com.gu.tableversions.metastore.Metastore.TableChanges
+import com.gu.tableversions.metastore.{Metastore, VersionPaths}
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
-// TODO: Turn into syntax on Dataset
+/**
+  * Code for writing Spark datasets to storage in a version-aware manner, taking in version information,
+  * using the appropriate paths for storage, and committing version changes.
+  */
 object VersionedDataset {
+
+  implicit def toDatasetOps[T](
+      delegate: Dataset[T])(implicit tableVersions: TableVersions[IO], metastore: Metastore[IO]): DatasetOps[T] =
+    new DatasetOps(delegate)
+
+  class DatasetOps[T](val delegate: Dataset[T]) extends AnyVal {
+
+    /**
+      * Insert the dataset into the given versioned table.
+      *
+      * This emulates the behaviour of Hive inserts in that it will overwrite any partitions present in the dataset,
+      * while leaving other partitions unchanged.
+      *
+      * @return a tuple containing the updated table version information, and a list of the changes that were applied
+      *         to the metastore.
+      */
+    def versionedInsertInto(table: TableDefinition, userId: UserId, message: String)(
+        implicit tableVersions: TableVersions[IO],
+        metastore: Metastore[IO]): (TableVersion, TableChanges) =
+      versionedInsertDatasetIntoTable(delegate, table, userId, message).unsafeRunSync()
+
+  }
+
+  private def versionedInsertDatasetIntoTable[T](
+      dataset: Dataset[T],
+      table: TableDefinition,
+      userId: UserId,
+      message: String)(
+      implicit tableVersions: TableVersions[IO],
+      metastore: Metastore[IO]): IO[(TableVersion, TableChanges)] =
+    for {
+      // Find the partition values in the given dataset
+      datasetPartitions <- IO(VersionedDataset.partitionValues(dataset, table.partitionSchema)(dataset.sparkSession))
+
+      // Get next version numbers for the partitions of the dataset
+      workingVersions <- tableVersions.nextVersions(table.name, datasetPartitions)
+
+      // Resolve the path that each partition should be written to, based on their version
+      partitionPaths = VersionPaths.resolveVersionedPartitionPaths(workingVersions, table.location)
+
+      // Write Spark dataset to the versioned path
+      _ <- IO(VersionedDataset.writeVersionedPartitions(dataset, partitionPaths))
+
+      // Commit written version
+      _ <- tableVersions.commit(TableUpdate(userId, UpdateMessage(message), Instant.now(), workingVersions))
+
+      // Get latest version details and Metastore table details and sync the Metastore to match,
+      // effectively switching the table to the new version.
+      latestTableVersion <- tableVersions.currentVersion(table.name)
+      metastoreVersion <- metastore.currentVersion(table.name)
+      metastoreUpdate = metastore.computeChanges(latestTableVersion, metastoreVersion)
+
+      // Sync Metastore to match
+      _ <- metastore.update(table.name, metastoreUpdate)
+
+    } yield (latestTableVersion, metastoreUpdate)
 
   /**
     * Get the unique partition values that exist within the given dataset, based on given partition columns.
     */
-  def partitionValues[T](dataset: Dataset[T], partitionSchema: PartitionSchema)(
+  private[spark] def partitionValues[T](dataset: Dataset[T], partitionSchema: PartitionSchema)(
       implicit spark: SparkSession): List[Partition] = {
     if (partitionSchema == PartitionSchema.snapshot) {
       List(Partition.snapshotPartition)
@@ -41,8 +104,7 @@ object VersionedDataset {
   /**
     * Write the given partitioned dataset, storing each partition in the associated path.
     */
-  def writeVersionedPartitions[T](dataset: Dataset[T], partitionPaths: Map[Partition, URI]): IO[Unit] = IO {
-
+  private[spark] def writeVersionedPartitions[T](dataset: Dataset[T], partitionPaths: Map[Partition, URI]): Unit = {
     // This is a slow and inefficient implementation that writes each partition in sequence,
     // we can look into a more performant solution later.
 
