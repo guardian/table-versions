@@ -173,7 +173,7 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
     )
 
     // Stub table versions
-    val committedTableUpdatesRef = Ref[IO].of(List.empty[TableVersions.TableUpdate]).unsafeRunSync() // Am I a bad person?
+    val committedTableUpdatesRef = Ref[IO].of(List.empty[TableVersions.TableUpdate]).unsafeRunSync()
     implicit val stubTableVersions = new StubTableVersions(
       currentVersions = Map(eventsTable.name -> TableVersion(nextPartitionVersions)),
       nextVersions = Map(eventsTable.name -> nextPartitionVersions),
