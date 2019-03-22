@@ -16,11 +16,9 @@ import org.apache.spark.sql.{Dataset, Row, SparkSession}
   */
 object VersionedDataset {
 
-  implicit def toDatasetOps[T](
-      delegate: Dataset[T])(implicit tableVersions: TableVersions[IO], metastore: Metastore[IO]): DatasetOps[T] =
-    new DatasetOps(delegate)
-
-  class DatasetOps[T](val delegate: Dataset[T]) extends AnyVal {
+  implicit class DatasetOps[T](val delegate: Dataset[T])(
+      implicit tableVersions: TableVersions[IO],
+      metastore: Metastore[IO]) {
 
     /**
       * Insert the dataset into the given versioned table.
