@@ -7,10 +7,11 @@ import java.time.Instant
 import cats.effect.IO
 import cats.effect.concurrent.Ref
 import com.gu.tableversions.core.Partition.PartitionColumn
-import com.gu.tableversions.core.TableVersions.{UpdateMessage, UserId}
+import com.gu.tableversions.core.TableVersions.{CommitResult, UpdateMessage, UserId}
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore
-import com.gu.tableversions.metastore.Metastore.{AddPartition, TableChanges}
+import com.gu.tableversions.metastore.Metastore.TableChanges
+import com.gu.tableversions.metastore.Metastore.TableOperation.AddPartition
 import com.gu.tableversions.spark.VersionedDatasetSpec.{Event, User}
 import org.apache.spark.sql.Dataset
 import org.scalatest.{FlatSpec, Matchers}
@@ -239,7 +240,7 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
       IO(nextVersions(table))
 
     override def commit(newVersion: TableVersions.TableUpdate): IO[TableVersions.CommitResult] =
-      committedTableUpdatesRef.update(_ :+ newVersion).map(_ => TableVersions.SuccessfulCommit)
+      committedTableUpdatesRef.update(_ :+ newVersion).map(_ => CommitResult.SuccessfulCommit)
   }
 
   class StubMetastore(currentVersion: TableVersion, computedChanges: TableChanges) extends Metastore[IO] {

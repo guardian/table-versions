@@ -36,10 +36,13 @@ object Metastore {
   final case class TableChanges(operations: List[TableOperation])
 
   sealed trait TableOperation
-  final case class AddPartition(partition: PartitionVersion) extends TableOperation
-  final case class UpdatePartitionVersion(partition: PartitionVersion) extends TableOperation
-  final case class RemovePartition(partition: PartitionVersion)
-  final case class UpdateTableLocation(tableLocation: URI, versionNumber: VersionNumber)
+
+  object TableOperation {
+    final case class AddPartition(partition: PartitionVersion) extends TableOperation
+    final case class UpdatePartitionVersion(partition: PartitionVersion) extends TableOperation
+    final case class RemovePartition(partition: PartitionVersion)
+    final case class UpdateTableLocation(tableLocation: URI, versionNumber: VersionNumber)
+  }
 
   def computeChanges(current: TableVersion, target: TableVersion): TableChanges = ???
 

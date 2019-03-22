@@ -33,20 +33,23 @@ trait TableVersions[F[_]] {
 object TableVersions {
 
   /** A collection of updates to partitions to be applied and tracked as a single atomic change. */
-  case class TableUpdate(
+  final case class TableUpdate(
       userId: UserId,
       message: UpdateMessage,
       timestamp: Instant,
       updatedPartitions: List[PartitionVersion])
 
-  case class UpdateMessage(content: String)
+  final case class UpdateMessage(content: String)
 
-  case class UserId(value: String)
+  final case class UserId(value: String)
 
   /** Result type for commit operation */
   sealed trait CommitResult
-  object SuccessfulCommit extends CommitResult
-  final case class InvalidCommit(invalidPartitions: Map[PartitionVersion, ErrorMessage]) extends CommitResult
+
+  object CommitResult {
+    case object SuccessfulCommit extends CommitResult
+    final case class InvalidCommit(invalidPartitions: Map[PartitionVersion, ErrorMessage]) extends CommitResult
+  }
 
   case class ErrorMessage(value: String) extends AnyVal
 
