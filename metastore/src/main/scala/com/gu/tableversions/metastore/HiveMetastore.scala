@@ -7,7 +7,7 @@ import com.gu.tableversions.core.{TableName, TableVersion}
   */
 class HiveMetastore[F[_]] extends Metastore[F] {
 
-  override def currentVersion(table: TableName): F[TableVersion] = ???
+  override def currentVersion(table: TableName): F[Option[TableVersion]] = ???
 
   override def update(table: TableName, changes: Metastore.TableChanges): F[Unit] = ???
 }

@@ -12,7 +12,7 @@ trait Metastore[F[_]] {
     *
     * @param table The table to query
     */
-  def currentVersion(table: TableName): F[TableVersion]
+  def currentVersion(table: TableName): F[Option[TableVersion]]
 
   /**
     * Apply the given changes to the table in the Hive Metastore.
