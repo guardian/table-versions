@@ -29,7 +29,7 @@ lazy val testSettings = Defaults.itSettings ++ Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(core, metastore, spark, dynamodb, cli, examples)
+  .aggregate(core, metastore, spark, cli, examples)
   .settings(commonSettings)
 
 lazy val core = project
@@ -45,7 +45,7 @@ lazy val metastore = project
 lazy val cli = project
   .in(file("cli"))
   .settings(commonSettings)
-  .dependsOn(core, metastore, dynamodb)
+  .dependsOn(core, metastore)
 
 lazy val spark = project
   .in(file("spark"))
@@ -58,11 +58,6 @@ lazy val spark = project
     ) ++ sparkDependencies)
   .dependsOn(core, metastore)
 
-lazy val dynamodb = project
-  .in(file("dynamodb"))
-  .settings(commonSettings)
-  .dependsOn(core)
-
 lazy val examples = project
   .in(file("examples"))
   .settings(commonSettings)
@@ -72,4 +67,4 @@ lazy val examples = project
   .settings(
     parallelExecution in Test := false
   )
-  .dependsOn(core, metastore, dynamodb, spark % "compile->compile;test->test")
+  .dependsOn(core, metastore, spark % "compile->compile;test->test")
