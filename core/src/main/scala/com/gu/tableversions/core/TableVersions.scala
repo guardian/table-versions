@@ -39,9 +39,9 @@ object TableVersions {
       timestamp: Instant,
       updatedPartitions: List[PartitionVersion])
 
-  final case class UpdateMessage(content: String)
+  final case class UpdateMessage(content: String) extends AnyVal
 
-  final case class UserId(value: String)
+  final case class UserId(value: String) extends AnyVal
 
   /** Result type for commit operation */
   sealed trait CommitResult

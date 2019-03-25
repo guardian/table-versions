@@ -40,7 +40,7 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
     )
 
     val userId = UserId("test user")
-    loader.insert(pageviewsDay1.toDS().coalesce(2), userId, "Day 1 initial commit")
+    loader.insert(pageviewsDay1.toDS(), userId, "Day 1 initial commit")
 
     loader.pageviews().collect() should contain theSameElementsAs pageviewsDay1
 
@@ -50,7 +50,7 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
       Pageview("user-4", "business", Timestamp.valueOf("2019-03-14 14:00:00"))
     )
 
-    loader.insert(pageviewsDay2.toDS().coalesce(2), userId, "Day 2 initial commit")
+    loader.insert(pageviewsDay2.toDS(), userId, "Day 2 initial commit")
     loader.pageviews().collect() should contain theSameElementsAs pageviewsDay1 ++ pageviewsDay2
 
     val pageviewsDay3 = List(
@@ -59,7 +59,7 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
       Pageview("user-3", "sport/football", Timestamp.valueOf("2019-03-15 21:00:00"))
     )
 
-    loader.insert(pageviewsDay3.toDS().coalesce(2), userId, "Day 3 initial commit")
+    loader.insert(pageviewsDay3.toDS(), userId, "Day 3 initial commit")
 
     loader.pageviews().collect() should contain theSameElementsAs pageviewsDay1 ++ pageviewsDay2 ++ pageviewsDay3
 
@@ -86,7 +86,7 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
     // Rewrite pageviews to remove one of the identity IDs, affecting only day 2
     // TODO: Change this to affect multiple partitions
     val updatedPageviewsDay2 = pageviewsDay2.filter(_.id != "user-4")
-    loader.insert(updatedPageviewsDay2.toDS().coalesce(2), UserId("another user"), "Reprocess day 2")
+    loader.insert(updatedPageviewsDay2.toDS(), UserId("another user"), "Reprocess day 2")
 
     // Query to check we see the updated data
     loader.pageviews().collect() should contain theSameElementsAs pageviewsDay1 ++ updatedPageviewsDay2 ++ pageviewsDay3

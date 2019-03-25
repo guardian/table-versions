@@ -2,7 +2,7 @@ package com.gu.tableversions.metastore
 
 import java.net.URI
 
-import com.gu.tableversions.core.{PartitionVersion, TableName, TableVersion, VersionNumber}
+import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore.TableChanges
 
 trait Metastore[F[_]] {
@@ -40,8 +40,8 @@ object Metastore {
   object TableOperation {
     final case class AddPartition(partition: PartitionVersion) extends TableOperation
     final case class UpdatePartitionVersion(partition: PartitionVersion) extends TableOperation
-    final case class RemovePartition(partition: PartitionVersion)
-    final case class UpdateTableLocation(tableLocation: URI, versionNumber: VersionNumber)
+    final case class RemovePartition(partition: Partition) extends TableOperation
+    final case class UpdateTableLocation(tableLocation: URI, versionNumber: VersionNumber) extends TableOperation
   }
 
   def computeChanges(current: TableVersion, target: TableVersion): TableChanges = ???
