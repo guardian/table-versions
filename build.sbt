@@ -40,6 +40,11 @@ lazy val core = project
 lazy val metastore = project
   .in(file("metastore"))
   .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
+      "log4j" % "log4j" % "1.2.17"
+    ) ++ sparkDependencies)
   .dependsOn(core)
 
 lazy val cli = project

@@ -1,4 +1,4 @@
-package com.gu.tableversions.spark
+package com.gu.tableversions.metastore
 
 import java.io.File
 import java.net.URI
@@ -13,6 +13,8 @@ import org.apache.spark.sql.internal.SQLConf
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
 
 import scala.util.Try
+
+// TODO: MOVE THIS TO A SEPARATE MODULE!!!
 
 /**
   * Base trait for ScalaTest tests that use a local Spark context with Hive support enabled.

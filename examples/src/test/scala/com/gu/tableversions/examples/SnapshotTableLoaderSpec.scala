@@ -6,7 +6,7 @@ import java.nio.file.Paths
 import cats.effect.IO
 import com.gu.tableversions.core.TableVersions.UserId
 import com.gu.tableversions.core._
-import com.gu.tableversions.metastore.HiveMetastore
+import com.gu.tableversions.metastore.SparkHiveMetastore
 import com.gu.tableversions.spark.SparkHiveSuite
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -20,7 +20,7 @@ class SnapshotTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite
     import spark.implicits._
 
     implicit val tableVersions = new InMemoryTableVersions[IO]()
-    implicit val metastore = new HiveMetastore[IO]()
+    implicit val metastore = new SparkHiveMetastore[IO]()
 
     val userId = UserId("test user")
 

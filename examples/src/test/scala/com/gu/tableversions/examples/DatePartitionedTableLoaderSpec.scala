@@ -8,7 +8,7 @@ import cats.effect.IO
 import com.gu.tableversions.core.Partition.PartitionColumn
 import com.gu.tableversions.core.TableVersions.UserId
 import com.gu.tableversions.core._
-import com.gu.tableversions.metastore.HiveMetastore
+import com.gu.tableversions.metastore.SparkHiveMetastore
 import com.gu.tableversions.spark.SparkHiveSuite
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -26,7 +26,7 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
 
     import spark.implicits._
     implicit val tableVersions = new InMemoryTableVersions[IO]()
-    implicit val metastore = new HiveMetastore[IO]()
+    implicit val metastore = new SparkHiveMetastore[IO]()
 
     val loader =
       new DatePartitionedTableLoader(table)
