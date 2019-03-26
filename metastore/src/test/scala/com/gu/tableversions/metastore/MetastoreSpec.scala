@@ -131,11 +131,37 @@ trait MetastoreSpec {
     }
 
     it should "return an error if trying to get the version of an unknown table" in {
-      fail("TODO")
+
+      val scenario = for {
+        metastore <- emptyMetastore
+        _ <- initHiveTable
+
+        version <- metastore.currentVersion(TableName("unknown", "table"))
+
+      } yield version
+
+      val ex = the[Exception] thrownBy scenario.unsafeRunSync()
+      ex.getMessage.toLowerCase should include regex "unknown.*not found"
     }
 
-    it should "not allow updating the version of an unknown partition" ignore {
-      fail("TODO")
+    it should "not allow updating the version of an unknown partition" in {
+      val scenario = for {
+        metastore <- emptyMetastore
+        _ <- initHiveTable
+
+        _ <- metastore.update(
+          table.name,
+          TableChanges(
+            List(
+              UpdatePartitionVersion(PartitionVersion(Partition(dateCol, "2019-03-01"), VersionNumber(1)))
+            )
+          )
+        )
+
+      } yield ()
+
+      val ex = the[Exception] thrownBy scenario.unsafeRunSync()
+      ex.getMessage.toLowerCase should include regex "partition not found"
     }
 
   }
