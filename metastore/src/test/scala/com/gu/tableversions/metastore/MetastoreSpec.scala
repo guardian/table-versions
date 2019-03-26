@@ -5,14 +5,20 @@ import com.gu.tableversions.core.Partition.PartitionColumn
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore.TableChanges
 import com.gu.tableversions.metastore.Metastore.TableOperation._
-import org.apache.spark.sql.SparkSession
 import org.scalatest.{FlatSpec, Matchers}
 
+/**
+  * Spec containing tests that apply across all Metastore implementations.
+  *
+  * These are black box tests purely in terms of the Metastore interface.
+  */
 trait MetastoreSpec {
   this: FlatSpec with Matchers =>
 
-  def metastoreWithSnapshotSupport(emptyMetastore: IO[Metastore[IO]], initHiveTable: IO[Unit], table: TableDefinition)(
-      implicit spark: SparkSession): Unit = {
+  def metastoreWithSnapshotSupport(
+      emptyMetastore: IO[Metastore[IO]],
+      initHiveTable: IO[Unit],
+      table: TableDefinition): Unit = {
 
     it should "allow table versions to be updated for snapshot tables" in {
 
@@ -51,7 +57,7 @@ trait MetastoreSpec {
   def metastoreWithPartitionsSupport(
       emptyMetastore: IO[Metastore[IO]],
       initHiveTable: IO[Unit],
-      table: TableDefinition)(implicit spark: SparkSession): Unit = {
+      table: TableDefinition): Unit = {
 
     val dateCol = PartitionColumn("date")
 

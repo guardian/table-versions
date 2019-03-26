@@ -6,8 +6,7 @@ import java.nio.file.Paths
 import cats.effect.IO
 import com.gu.tableversions.core.TableVersions.UserId
 import com.gu.tableversions.core._
-import com.gu.tableversions.metastore.SparkHiveMetastore
-import com.gu.tableversions.spark.SparkHiveSuite
+import com.gu.tableversions.spark.{SparkHiveMetastore, SparkHiveSuite}
 import org.scalatest.{FlatSpec, Matchers}
 
 class SnapshotTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {

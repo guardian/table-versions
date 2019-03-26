@@ -1,13 +1,14 @@
-package com.gu.tableversions.metastore
+package com.gu.tableversions.spark
 
 import java.net.URI
 
-import cats.effect.{IO, Sync}
+import cats.effect.Sync
 import cats.implicits._
 import com.gu.tableversions.core.Partition.{ColumnValue, PartitionColumn}
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore.TableOperation
 import com.gu.tableversions.metastore.Metastore.TableOperation._
+import com.gu.tableversions.metastore.{Metastore, VersionPaths}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.SparkSession
 
@@ -149,17 +150,17 @@ class SparkHiveMetastore[F[_]](implicit spark: SparkSession, F: Sync[F]) extends
 
 object SparkHiveMetastore {
 
-  private[metastore] def toPartitionExpr(partitionPath: String): String =
+  private[spark] def toPartitionExpr(partitionPath: String): String =
     toHivePartitionExpr(parsePartition(partitionPath))
 
-  private[metastore] def toHivePartitionExpr(partition: Partition): String =
+  private[spark] def toHivePartitionExpr(partition: Partition): String =
     partition.columnValues
       .map(columnValue => s"${columnValue.column.name}='${columnValue.value}'")
       .mkString("(", ",", ")")
 
   private val ColumnValueRegex = "([a-z_]+)=(.+)".r
 
-  private[metastore] def parsePartition(partitionStr: String): Partition = {
+  private[spark] def parsePartition(partitionStr: String): Partition = {
     def parseColumnValue(str: String): ColumnValue = str match {
       case ColumnValueRegex(columnName, value) => ColumnValue(PartitionColumn(columnName), value)
       case _                                   => throw new Exception(s"Invalid partition string: $partitionStr")
@@ -171,7 +172,7 @@ object SparkHiveMetastore {
 
   private val VersionRegex = "v(\\d+)".r
 
-  private[metastore] def parseVersion(location: String): VersionNumber = {
+  private[spark] def parseVersion(location: String): VersionNumber = {
     val maybeVersionStr = location.split("/").lastOption
     maybeVersionStr match {
       case Some(VersionRegex(versionStr)) => VersionNumber(versionStr.toInt)

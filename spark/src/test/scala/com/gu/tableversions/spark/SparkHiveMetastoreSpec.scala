@@ -1,12 +1,13 @@
-package com.gu.tableversions.metastore
+package com.gu.tableversions.spark
 
 import cats.effect.IO
+import cats.syntax.functor._
 import com.gu.tableversions.core.Partition.{ColumnValue, PartitionColumn}
 import com.gu.tableversions.core._
-import com.gu.tableversions.metastore.SparkHiveMetastore.parseVersion
+import com.gu.tableversions.metastore.MetastoreSpec
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import cats.syntax.functor._
+import SparkHiveMetastore._
 
 class SparkHiveMetastoreSpec extends FlatSpec with Matchers with SparkHiveSuite with MetastoreSpec with PropertyChecks {
 
