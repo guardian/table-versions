@@ -22,47 +22,10 @@ class SparkHiveMetastore(implicit spark: SparkSession) extends Metastore[IO] wit
 
   override def currentVersion(table: TableName): IO[TableVersion] = {
 
-    val isPartitioned: IO[Boolean] = {
-      // We have to interpret the strange format returned by DESCRIBE queries, which, if the table is partitioned,
-      // contains rows like:
-      //
-      // |# Partition Information|         |                                                           |
-      // |# col_name             |data_type|comment                                                    |
-      // |date                   |date     |null                                                       |
-
-      val query = s"DESCRIBE ${table.fullyQualifiedName}"
-
-      IO {
-        val output = spark
-          .sql(query)
-          .collect()
-        output
-          .flatMap(row => Option(row.getAs[String]("col_name")))
-          .contains("# Partition Information")
-      }
-    }
-
-    val listPartitions: IO[List[String]] =
-      IO { spark.sql(s"show partitions ${table.fullyQualifiedName}").collect().toList.map(_.getString(0)) }
-
-    def partitionLocation(partitionExpr: String): IO[String] = {
-      val query = s"DESCRIBE FORMATTED ${table.fullyQualifiedName} PARTITION $partitionExpr"
-
-      IO {
-        spark
-          .sql(query)
-          .where('col_name === "Location")
-          .collect()
-          .map(_.getAs[String]("data_type"))
-          .headOption
-      }.map(_.getOrElse(throw new Exception(
-        s"No location information returned for partition $partitionExpr on table ${table.fullyQualifiedName}")))
-    }
-
     val partitionedTableVersion: IO[TableVersion] = for {
-      partitions <- listPartitions
+      partitions <- listPartitions(table)
       partitionLocations <- partitions.map { partition =>
-        partitionLocation(toPartitionExpr(partition)).map(location => partition -> location)
+        partitionLocation(table, toPartitionExpr(partition)).map(location => partition -> location)
       }.sequence
 
       partitionVersions: List[PartitionVersion] = partitionLocations.map {
@@ -75,7 +38,8 @@ class SparkHiveMetastore(implicit spark: SparkSession) extends Metastore[IO] wit
       versionNumber = parseVersion(tableLocation)
     } yield TableVersion(List(PartitionVersion(Partition.snapshotPartition, versionNumber)))
 
-    isPartitioned.flatMap(partitioned => if (partitioned) partitionedTableVersion else snapshotTableVersion)
+    // Choose the calculation to perform based on whether we have a partitioned table or not
+    isPartitioned(table).flatMap(partitioned => if (partitioned) partitionedTableVersion else snapshotTableVersion)
   }
 
   override def update(table: TableName, changes: Metastore.TableChanges): IO[Unit] =
@@ -88,14 +52,6 @@ class SparkHiveMetastore(implicit spark: SparkSession) extends Metastore[IO] wit
       case RemovePartition(partition)                        => removePartition(table, partition)
       case UpdateTableLocation(tableLocation, versionNumber) => updateTableLocation(table, tableLocation, versionNumber)
     }
-
-  // TODO: Separate out the non-IO bits of this
-  private def versionedPartitionLocation(table: TableName, partitionVersion: PartitionVersion): IO[URI] =
-    for {
-      tableLocation <- findTableLocation(table).map(new URI(_))
-      partitionLocation = partitionVersion.partition.resolvePath(tableLocation)
-      versionedPartitionLocation = VersionPaths.pathFor(partitionLocation, partitionVersion.version)
-    } yield versionedPartitionLocation
 
   private def addPartition(table: TableName, partitionVersion: PartitionVersion): IO[Unit] = {
 
@@ -131,6 +87,14 @@ class SparkHiveMetastore(implicit spark: SparkSession) extends Metastore[IO] wit
     performUpdate(s"Removing partition $partition from table ${table.fullyQualifiedName}", removePartitionQuery)
   }
 
+  // TODO: Separate out the non-IO bits of this
+  private def versionedPartitionLocation(table: TableName, partitionVersion: PartitionVersion): IO[URI] =
+    for {
+      tableLocation <- findTableLocation(table).map(new URI(_))
+      partitionLocation = partitionVersion.partition.resolvePath(tableLocation)
+      versionedPartitionLocation = VersionPaths.pathFor(partitionLocation, partitionVersion.version)
+    } yield versionedPartitionLocation
+
   private def updateTableLocation(table: TableName, tableLocation: URI, version: VersionNumber): IO[Unit] = {
     val versionedPath = VersionPaths.pathFor(tableLocation, version)
     val updateQuery = s"ALTER TABLE ${table.fullyQualifiedName} SET LOCATION '$versionedPath'"
@@ -149,6 +113,38 @@ class SparkHiveMetastore(implicit spark: SparkSession) extends Metastore[IO] wit
     IO(spark.sql(query).where('col_name === "Location").collect().toList.map(_.getString(1)).headOption)
       .map(_.getOrElse(throw new Exception(s"No location information returned for table ${table.fullyQualifiedName}")))
   }
+
+  private def listPartitions(table: TableName): IO[List[String]] =
+    IO { spark.sql(s"show partitions ${table.fullyQualifiedName}").collect().toList.map(_.getString(0)) }
+
+  private def partitionLocation(table: TableName, partitionExpr: String): IO[String] =
+    IO {
+      spark
+        .sql(s"DESCRIBE FORMATTED ${table.fullyQualifiedName} PARTITION $partitionExpr")
+        .where('col_name === "Location")
+        .collect()
+        .map(_.getAs[String]("data_type"))
+        .headOption
+    }.map(_.getOrElse(throw new Exception(
+      s"No location information returned for partition $partitionExpr on table ${table.fullyQualifiedName}")))
+
+  private def isPartitioned(table: TableName): IO[Boolean] = {
+    // We have to interpret the strange format returned by DESCRIBE queries, which, if the table is partitioned,
+    // contains rows like:
+    //
+    // |# Partition Information|         |               |
+    // |# col_name             |data_type|comment        |
+    // |date                   |date     |null           |
+
+    IO {
+      spark
+        .sql(s"DESCRIBE ${table.fullyQualifiedName}")
+        .collect()
+        .flatMap(row => Option(row.getAs[String]("col_name")))
+        .contains("# Partition Information")
+    }
+  }
+
 }
 
 object SparkHiveMetastore {
