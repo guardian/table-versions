@@ -11,16 +11,14 @@ import org.scalatest.{FlatSpec, Matchers}
 trait MetastoreSpec {
   this: FlatSpec with Matchers =>
 
-  // TODO: just : Metastore[IO]?
-  def metastoreWithSnapshotSupport(emptyMetastore: => Metastore[IO], initTable: IO[Unit], table: TableDefinition)(
+  def metastoreWithSnapshotSupport(emptyMetastore: IO[Metastore[IO]], initHiveTable: IO[Unit], table: TableDefinition)(
       implicit spark: SparkSession): Unit = {
 
     it should "allow table versions to be updated for snapshot tables" in {
 
-      val metastore: Metastore[IO] = emptyMetastore
-
       val scenario = for {
-        _ <- initTable
+        metastore <- emptyMetastore
+        _ <- initHiveTable
 
         initialVersion <- metastore.currentVersion(table.name)
 
@@ -50,16 +48,17 @@ trait MetastoreSpec {
 
   }
 
-  def metastoreWithPartitionsSupport(emptyMetastore: => Metastore[IO], initTable: IO[Unit], table: TableDefinition)(
-      implicit spark: SparkSession): Unit = {
+  def metastoreWithPartitionsSupport(
+      emptyMetastore: IO[Metastore[IO]],
+      initHiveTable: IO[Unit],
+      table: TableDefinition)(implicit spark: SparkSession): Unit = {
 
     val dateCol = PartitionColumn("date")
 
     it should "allow individual partitions to be updated in partitioned tables" in {
-      val metastore: Metastore[IO] = emptyMetastore
-
       val scenario = for {
-        _ <- initTable
+        metastore <- emptyMetastore
+        _ <- initHiveTable
 
         initialVersion <- metastore.currentVersion(table.name)
 
