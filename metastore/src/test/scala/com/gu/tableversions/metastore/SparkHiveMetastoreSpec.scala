@@ -84,13 +84,15 @@ class SparkHiveMetastoreSpec extends FlatSpec with Matchers with SparkHiveSuite 
 
   }
 
-  "Parsing the version from a versioned path" should "produce the version number" in {
+  "Parsing the version from versioned paths" should "produce the version number" in {
     parseVersion("file:/tmp/7bbc577c-471d-4ece-8462-36147c30bdf3/table/date=2019-01-21/v5") shouldBe VersionNumber(5)
     parseVersion("s3://bucket/pageview/date=2019-01-21/v5") shouldBe VersionNumber(5)
+    parseVersion("s3://bucket/identity/v42") shouldBe VersionNumber(42)
   }
 
-  "Parsing the version from an unversioned path" should "produce version 0" in {
+  "Parsing the version from unversioned paths" should "produce version 0" in {
     parseVersion("s3://bucket/pageview/date=2019-01-21") shouldBe VersionNumber(0)
+    parseVersion("s3://bucket/identity") shouldBe VersionNumber(0)
   }
 
   "Converting a partition path to a Hive partition expression" should "do the expected conversion" in {
@@ -122,10 +124,9 @@ class SparkHiveMetastoreSpec extends FlatSpec with Matchers with SparkHiveSuite 
   private def initSnapshotTable(table: TableDefinition): IO[Unit] = {
     val ddl = s"""CREATE EXTERNAL TABLE IF NOT EXISTS ${table.name.fullyQualifiedName} (
                  |  `id` string,
-                 |  `path` string,
-                 |  `timestamp` timestamp
+                 |  `name` string,
+                 |  `email` string
                  |)
-                 |PARTITIONED BY (`date` date)
                  |STORED AS parquet
                  |LOCATION '${table.location}'
     """.stripMargin

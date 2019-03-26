@@ -40,7 +40,7 @@ trait MetastoreSpec {
 
       val (initialVersion, firstUpdatedVersion, secondUpdatedVersion, revertedVersion) = scenario.unsafeRunSync()
 
-      initialVersion shouldBe TableVersion(List(PartitionVersion(Partition.snapshotPartition, VersionNumber(1))))
+      initialVersion shouldBe TableVersion(List(PartitionVersion(Partition.snapshotPartition, VersionNumber(0))))
       firstUpdatedVersion shouldBe
         TableVersion(List(PartitionVersion(Partition.snapshotPartition, VersionNumber(1))))
       secondUpdatedVersion shouldBe
