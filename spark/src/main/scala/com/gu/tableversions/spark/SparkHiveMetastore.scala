@@ -87,12 +87,11 @@ class SparkHiveMetastore[F[_]](implicit spark: SparkSession, F: Sync[F]) extends
     performUpdate(s"Removing partition $partition from table ${table.fullyQualifiedName}", removePartitionQuery)
   }
 
-  // TODO: Separate out the non-IO bits of this
   private def versionedPartitionLocation(table: TableName, partitionVersion: PartitionVersion): F[URI] =
     for {
       tableLocation <- findTableLocation(table).map(new URI(_))
-      partitionLocation = partitionVersion.partition.resolvePath(tableLocation)
-      versionedPartitionLocation = VersionPaths.pathFor(partitionLocation, partitionVersion.version)
+      partitionLocation <- F.delay(partitionVersion.partition.resolvePath(tableLocation))
+      versionedPartitionLocation <- F.delay(VersionPaths.pathFor(partitionLocation, partitionVersion.version))
     } yield versionedPartitionLocation
 
   private def updateTableLocation(table: TableName, tableLocation: URI, version: VersionNumber): F[Unit] = {
