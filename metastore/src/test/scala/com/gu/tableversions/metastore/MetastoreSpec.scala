@@ -5,19 +5,23 @@ import com.gu.tableversions.core.Partition.PartitionColumn
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore.TableChanges
 import com.gu.tableversions.metastore.Metastore.TableOperation._
+import org.apache.spark.sql.SparkSession
 import org.scalatest.{FlatSpec, Matchers}
 
 trait MetastoreSpec {
   this: FlatSpec with Matchers =>
 
-  def snapshotTableBehaviour(emptyMetastore: => Metastore[IO], table: TableDefinition): Unit = {
+  // TODO: just : Metastore[IO]?
+  def metastoreWithSnapshotSupport(emptyMetastore: => Metastore[IO], initTable: IO[Unit], table: TableDefinition)(
+      implicit spark: SparkSession): Unit = {
 
     it should "allow table versions to be updated for snapshot tables" in {
 
       val metastore: Metastore[IO] = emptyMetastore
 
       val scenario = for {
-        // Get version before any updates
+        _ <- initTable
+
         initialVersion <- metastore.currentVersion(table.name)
 
         _ <- metastore.update(table.name, TableChanges(List(UpdateTableLocation(table.location, VersionNumber(1)))))
@@ -36,17 +40,18 @@ trait MetastoreSpec {
 
       val (initialVersion, firstUpdatedVersion, secondUpdatedVersion, revertedVersion) = scenario.unsafeRunSync()
 
-      initialVersion shouldBe None
-      firstUpdatedVersion shouldBe Some(
-        TableVersion(List(PartitionVersion(Partition.snapshotPartition, VersionNumber(1)))))
-      secondUpdatedVersion shouldBe Some(
-        TableVersion(List(PartitionVersion(Partition.snapshotPartition, VersionNumber(42)))))
-      revertedVersion shouldBe firstUpdatedVersion
+      initialVersion shouldBe TableVersion(List(PartitionVersion(Partition.snapshotPartition, VersionNumber(1))))
+      firstUpdatedVersion shouldBe
+        TableVersion(List(PartitionVersion(Partition.snapshotPartition, VersionNumber(1))))
+      secondUpdatedVersion shouldBe
+        TableVersion(List(PartitionVersion(Partition.snapshotPartition, VersionNumber(42))))
+      revertedVersion shouldEqual firstUpdatedVersion
     }
 
   }
 
-  def partitionedTableBehaviour(emptyMetastore: => Metastore[IO], table: TableDefinition): Unit = {
+  def metastoreWithPartitionsSupport(emptyMetastore: => Metastore[IO], initTable: IO[Unit], table: TableDefinition)(
+      implicit spark: SparkSession): Unit = {
 
     val dateCol = PartitionColumn("date")
 
@@ -54,6 +59,8 @@ trait MetastoreSpec {
       val metastore: Metastore[IO] = emptyMetastore
 
       val scenario = for {
+        _ <- initTable
+
         initialVersion <- metastore.currentVersion(table.name)
 
         _ <- metastore.update(
@@ -85,7 +92,7 @@ trait MetastoreSpec {
           table.name,
           TableChanges(
             List(
-              RemovePartition(Partition(dateCol, "2019-03-01"))
+              RemovePartition(Partition(dateCol, "2019-03-02"))
             )
           )
         )
@@ -97,29 +104,35 @@ trait MetastoreSpec {
       val (initialVersion, versionAfterFirstUpdate, versionAfterSecondUpdate, versionAfterPartitionRemoved) =
         scenario.unsafeRunSync()
 
-      initialVersion shouldBe None
+      initialVersion shouldBe TableVersion(Nil)
 
-      versionAfterFirstUpdate shouldBe Some(
-        TableVersion(List(
-          PartitionVersion(Partition(dateCol, "2019-03-01"), VersionNumber(0)),
-          PartitionVersion(Partition(dateCol, "2019-03-02"), VersionNumber(1)),
-          PartitionVersion(Partition(dateCol, "2019-03-03"), VersionNumber(1))
-        )))
+      versionAfterFirstUpdate shouldBe
+        TableVersion(
+          List(
+            PartitionVersion(Partition(dateCol, "2019-03-01"), VersionNumber(0)),
+            PartitionVersion(Partition(dateCol, "2019-03-02"), VersionNumber(1)),
+            PartitionVersion(Partition(dateCol, "2019-03-03"), VersionNumber(1))
+          ))
 
-      versionAfterSecondUpdate shouldBe Some(
-        TableVersion(List(
-          PartitionVersion(Partition(dateCol, "2019-03-01"), VersionNumber(1)),
-          PartitionVersion(Partition(dateCol, "2019-03-02"), VersionNumber(1)),
-          PartitionVersion(Partition(dateCol, "2019-03-03"), VersionNumber(2))
-        )))
+      versionAfterSecondUpdate shouldBe
+        TableVersion(
+          List(
+            PartitionVersion(Partition(dateCol, "2019-03-01"), VersionNumber(1)),
+            PartitionVersion(Partition(dateCol, "2019-03-02"), VersionNumber(1)),
+            PartitionVersion(Partition(dateCol, "2019-03-03"), VersionNumber(2))
+          ))
 
-      versionAfterPartitionRemoved shouldBe Some(
+      versionAfterPartitionRemoved shouldBe
         TableVersion(
           List(
             PartitionVersion(Partition(dateCol, "2019-03-01"), VersionNumber(1)),
             PartitionVersion(Partition(dateCol, "2019-03-03"), VersionNumber(2))
           ))
-      )
+
+    }
+
+    it should "return an error if trying to get the version of an unknown table" in {
+      fail("TODO")
     }
 
     it should "not allow updating the version of an unknown partition" ignore {
@@ -127,4 +140,5 @@ trait MetastoreSpec {
     }
 
   }
+
 }

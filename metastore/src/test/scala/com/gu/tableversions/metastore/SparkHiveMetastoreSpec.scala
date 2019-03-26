@@ -6,6 +6,7 @@ import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.SparkHiveMetastore.parseVersion
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
+import cats.syntax.functor._
 
 class SparkHiveMetastoreSpec extends FlatSpec with Matchers with SparkHiveSuite with MetastoreSpec with PropertyChecks {
 
@@ -15,14 +16,21 @@ class SparkHiveMetastoreSpec extends FlatSpec with Matchers with SparkHiveSuite 
   val partitionedTable = TableDefinition(TableName(schema, "clicks"),
                                          resolveTablePath("clicks"),
                                          PartitionSchema(List(PartitionColumn("date"))))
+  //
+  // Common specs
+  //
 
-  "A metastore implementation" should behave like snapshotTableBehaviour(new SparkHiveMetastore, snapshotTable)
+  "A metastore implementation" should behave like metastoreWithSnapshotSupport(new SparkHiveMetastore,
+                                                                               initSnapshotTable(snapshotTable),
+                                                                               snapshotTable)
 
-  it should behave like partitionedTableBehaviour(new SparkHiveMetastore, partitionedTable)
+  it should behave like metastoreWithPartitionsSupport(new SparkHiveMetastore,
+                                                       initPartitionedTable(partitionedTable),
+                                                       partitionedTable)
 
-  "Adding another test" should "foo" in {
-    2 + 2 shouldBe 4
-  }
+  //
+  // Tests specific to the Spark/Hive implementation
+  //
 
   "Parsing a valid partition string" should "produce the expected values" in {
     val testData = Table(
@@ -44,7 +52,7 @@ class SparkHiveMetastoreSpec extends FlatSpec with Matchers with SparkHiveSuite 
     }
   }
 
-  it should "do what for invalid partition strings?" in {
+  "Parsing an invalid partition string" should "throw an exception" in {
     // format: off
     val invalidPartitionStrings =
       Table(
@@ -95,6 +103,34 @@ class SparkHiveMetastoreSpec extends FlatSpec with Matchers with SparkHiveSuite 
     forAll(testData) { (partitionPath, expected) =>
       SparkHiveMetastore.toPartitionExpr(partitionPath) shouldBe expected
     }
+  }
+
+  private def initPartitionedTable(table: TableDefinition): IO[Unit] = {
+    val ddl = s"""CREATE EXTERNAL TABLE IF NOT EXISTS ${table.name.fullyQualifiedName} (
+                 |  `id` string,
+                 |  `path` string,
+                 |  `timestamp` timestamp
+                 |)
+                 |PARTITIONED BY (`date` date)
+                 |STORED AS parquet
+                 |LOCATION '${table.location}'
+    """.stripMargin
+
+    IO(spark.sql(ddl)).void
+  }
+
+  private def initSnapshotTable(table: TableDefinition): IO[Unit] = {
+    val ddl = s"""CREATE EXTERNAL TABLE IF NOT EXISTS ${table.name.fullyQualifiedName} (
+                 |  `id` string,
+                 |  `path` string,
+                 |  `timestamp` timestamp
+                 |)
+                 |PARTITIONED BY (`date` date)
+                 |STORED AS parquet
+                 |LOCATION '${table.location}'
+    """.stripMargin
+
+    IO(spark.sql(ddl)).void
   }
 
 }

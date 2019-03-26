@@ -11,14 +11,16 @@ trait Metastore[F[_]] {
     * Describe the current table in the Metastore interpreted in terms of version information.
     *
     * @param table The table to query
+    * @return the table version information, or a failure if the table doesn't exist or can't be queried.
     */
-  def currentVersion(table: TableName): F[Option[TableVersion]]
+  def currentVersion(table: TableName): F[TableVersion]
 
   /**
     * Apply the given changes to the table in the Hive Metastore.
     *
     * @param table The table to update
     * @param changes The changes that need to be applied to the table
+    * @return failure if the table is unknown or can't be updated.
     */
   def update(table: TableName, changes: TableChanges): F[Unit]
 
@@ -38,8 +40,8 @@ object Metastore {
   sealed trait TableOperation
 
   object TableOperation {
-    final case class AddPartition(partition: PartitionVersion) extends TableOperation
-    final case class UpdatePartitionVersion(partition: PartitionVersion) extends TableOperation
+    final case class AddPartition(partitionVersion: PartitionVersion) extends TableOperation
+    final case class UpdatePartitionVersion(partitionVersion: PartitionVersion) extends TableOperation
     final case class RemovePartition(partition: Partition) extends TableOperation
     final case class UpdateTableLocation(tableLocation: URI, versionNumber: VersionNumber) extends TableOperation
   }
