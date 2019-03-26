@@ -102,11 +102,7 @@ class SparkHiveMetastore(implicit spark: SparkSession) extends Metastore[IO] wit
     def addPartition(partitionExpr: String, partitionLocation: URI): IO[Unit] = {
       val addPartitionQuery =
         s"ALTER TABLE ${table.fullyQualifiedName} ADD IF NOT EXISTS PARTITION $partitionExpr LOCATION '$partitionLocation'"
-      IO {
-        logger.info(s"Adding partition to table ${table.fullyQualifiedName} using query: $addPartitionQuery")
-
-        spark.sql(addPartitionQuery)
-      }.void
+      performUpdate(s"Adding partition to table ${table.fullyQualifiedName}", addPartitionQuery)
     }
 
     val partitionExpr = toHivePartitionExpr(partitionVersion.partition)
@@ -119,11 +115,7 @@ class SparkHiveMetastore(implicit spark: SparkSession) extends Metastore[IO] wit
     def updatePartition(partitionExpr: String, partitionLocation: URI): IO[Unit] = {
       val updatePartitionQuery =
         s"ALTER TABLE ${table.fullyQualifiedName} PARTITION $partitionExpr SET LOCATION '$partitionLocation'"
-      IO {
-        logger.info(
-          s"Updating partition version of partition ${partitionVersion.partition} on table ${table.fullyQualifiedName} using query: $updatePartitionQuery")
-        spark.sql(updatePartitionQuery)
-      }.void
+      performUpdate(s"Updating partition version of partition ${partitionVersion.partition}", updatePartitionQuery)
     }
 
     val partitionExpr = toHivePartitionExpr(partitionVersion.partition)
@@ -136,20 +128,20 @@ class SparkHiveMetastore(implicit spark: SparkSession) extends Metastore[IO] wit
     val partitionExpr = toHivePartitionExpr(partition)
     val removePartitionQuery =
       s"ALTER TABLE ${table.fullyQualifiedName} DROP IF EXISTS PARTITION $partitionExpr"
-    IO {
-      logger.info(s"Removing partition of table ${table.fullyQualifiedName} using query: $removePartitionQuery")
-      spark.sql(removePartitionQuery)
-    }.void
+    performUpdate(s"Removing partition $partition from table ${table.fullyQualifiedName}", removePartitionQuery)
   }
 
   private def updateTableLocation(table: TableName, tableLocation: URI, version: VersionNumber): IO[Unit] = {
     val versionedPath = VersionPaths.pathFor(tableLocation, version)
     val updateQuery = s"ALTER TABLE ${table.fullyQualifiedName} SET LOCATION '$versionedPath'"
-    IO {
-      logger.info(s"Updating table location of table ${table.fullyQualifiedName} using query: $updateQuery")
-      spark.sql(updateQuery)
-    }.void
+    performUpdate(s"Updating table location of table ${table.fullyQualifiedName}", updateQuery)
   }
+
+  private def performUpdate(description: String, query: String): IO[Unit] =
+    IO {
+      logger.info(s"$description using query: $query")
+      spark.sql(query)
+    }.void
 
   private def findTableLocation(table: TableName): IO[String] = {
     val query = s"DESCRIBE FORMATTED ${table.fullyQualifiedName}"
@@ -157,7 +149,6 @@ class SparkHiveMetastore(implicit spark: SparkSession) extends Metastore[IO] wit
     IO(spark.sql(query).where('col_name === "Location").collect().toList.map(_.getString(1)).headOption)
       .map(_.getOrElse(throw new Exception(s"No location information returned for table ${table.fullyQualifiedName}")))
   }
-
 }
 
 object SparkHiveMetastore {
