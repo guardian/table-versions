@@ -89,7 +89,7 @@ class SparkHiveMetastore[F[_]](implicit spark: SparkSession, F: Sync[F]) extends
 
   private def versionedPartitionLocation(table: TableName, partitionVersion: PartitionVersion): F[URI] =
     for {
-      tableLocation <- findTableLocation(table).map(new URI(_))
+      tableLocation <- findTableLocation(table)
       partitionLocation <- F.delay(partitionVersion.partition.resolvePath(tableLocation))
       versionedPartitionLocation <- F.delay(VersionPaths.pathFor(partitionLocation, partitionVersion.version))
     } yield versionedPartitionLocation
@@ -106,36 +106,43 @@ class SparkHiveMetastore[F[_]](implicit spark: SparkSession, F: Sync[F]) extends
       spark.sql(query)
     }.void
 
-  private def findTableLocation(table: TableName): F[String] = {
-    val query = s"DESCRIBE FORMATTED ${table.fullyQualifiedName}"
+  private def findTableLocation(table: TableName): F[URI] = {
+    F.delay {
+      spark
+        .sql(s"DESCRIBE FORMATTED ${table.fullyQualifiedName}")
+        .where('col_name === "Location")
+        .collect()
+        .map(_.getString(1))
+        .headOption
+        .map(new URI(_))
+        .getOrElse(throw new Exception(s"No location information returned for table ${table.fullyQualifiedName}"))
+    }
 
-    F.delay(spark.sql(query).where('col_name === "Location").collect().toList.map(_.getString(1)).headOption)
-      .map(_.getOrElse(throw new Exception(s"No location information returned for table ${table.fullyQualifiedName}")))
   }
 
   private def listPartitions(table: TableName): F[List[String]] =
     F.delay { spark.sql(s"show partitions ${table.fullyQualifiedName}").collect().toList.map(_.getString(0)) }
 
-  private def partitionLocation(table: TableName, partitionExpr: String): F[String] =
+  private def partitionLocation(table: TableName, partitionExpr: String): F[URI] =
     F.delay {
-        spark
-          .sql(s"DESCRIBE FORMATTED ${table.fullyQualifiedName} PARTITION $partitionExpr")
-          .where('col_name === "Location")
-          .collect()
-          .map(_.getAs[String]("data_type"))
-          .headOption
-      }
-      .map(_.getOrElse(throw new Exception(
-        s"No location information returned for partition $partitionExpr on table ${table.fullyQualifiedName}")))
+      spark
+        .sql(s"DESCRIBE FORMATTED ${table.fullyQualifiedName} PARTITION $partitionExpr")
+        .where('col_name === "Location")
+        .collect()
+        .map(_.getAs[String]("data_type"))
+        .headOption
+        .map(new URI(_))
+        .getOrElse(throw new Exception(
+          s"No location information returned for partition $partitionExpr on table ${table.fullyQualifiedName}"))
+    }
 
-  private def isPartitioned(table: TableName): F[Boolean] = {
+  private def isPartitioned(table: TableName): F[Boolean] =
     // We have to interpret the strange format returned by DESCRIBE queries, which, if the table is partitioned,
     // contains rows like:
     //
     // |# Partition Information|         |               |
     // |# col_name             |data_type|comment        |
     // |date                   |date     |null           |
-
     F.delay {
       spark
         .sql(s"DESCRIBE ${table.fullyQualifiedName}")
@@ -143,7 +150,6 @@ class SparkHiveMetastore[F[_]](implicit spark: SparkSession, F: Sync[F]) extends
         .flatMap(row => Option(row.getAs[String]("col_name")))
         .contains("# Partition Information")
     }
-  }
 
 }
 
@@ -171,8 +177,8 @@ object SparkHiveMetastore {
 
   private val VersionRegex = "v(\\d+)".r
 
-  private[spark] def parseVersion(location: String): VersionNumber = {
-    val maybeVersionStr = location.split("/").lastOption
+  private[spark] def parseVersion(location: URI): VersionNumber = {
+    val maybeVersionStr = location.toString.split("/").lastOption
     maybeVersionStr match {
       case Some(VersionRegex(versionStr)) => VersionNumber(versionStr.toInt)
       case _                              => VersionNumber(0)
