@@ -24,9 +24,9 @@ class SparkHiveMetastore[F[_]](implicit spark: SparkSession, F: Sync[F]) extends
 
     val partitionedTableVersion: F[TableVersion] = for {
       partitions <- listPartitions(table)
-      partitionLocations <- partitions.map { partition =>
+      partitionLocations <- partitions.traverse { partition =>
         partitionLocation(table, toPartitionExpr(partition)).map(location => partition -> location)
-      }.sequence
+      }
 
       partitionVersions: List[PartitionVersion] = partitionLocations.map {
         case (partition, location) => PartitionVersion(parsePartition(partition), parseVersion(location))
@@ -43,7 +43,7 @@ class SparkHiveMetastore[F[_]](implicit spark: SparkSession, F: Sync[F]) extends
   }
 
   override def update(table: TableName, changes: Metastore.TableChanges): F[Unit] =
-    changes.operations.map(appliedOp(table)).sequence.void
+    changes.operations.traverse_(appliedOp(table))
 
   private def appliedOp(table: TableName)(operation: TableOperation): F[Unit] =
     operation match {
