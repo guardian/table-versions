@@ -71,7 +71,7 @@ class SparkHiveMetastoreSpec extends FlatSpec with Matchers with SparkHiveSuite 
     }
   }
 
-  "Rendering a partition as a string" should "produce a valid Hive partition expression" in {
+  "Rendering a partition" should "produce a valid Hive partition expression" in {
 
     val testData = Table(
       ("partition", "expected partition expression"),
@@ -84,7 +84,6 @@ class SparkHiveMetastoreSpec extends FlatSpec with Matchers with SparkHiveSuite 
     forAll(testData) { (partition, expectedExpr) =>
       SparkHiveMetastore.toHivePartitionExpr(partition) shouldBe expectedExpr
     }
-
   }
 
   "Parsing the version from versioned paths" should "produce the version number" in {

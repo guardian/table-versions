@@ -137,7 +137,6 @@ trait MetastoreSpec {
     }
 
     it should "return an error if trying to get the version of an unknown table" in {
-
       val scenario = for {
         metastore <- emptyMetastore
         _ <- initHiveTable
@@ -154,7 +153,6 @@ trait MetastoreSpec {
       val scenario = for {
         metastore <- emptyMetastore
         _ <- initHiveTable
-
         _ <- metastore.update(
           table.name,
           TableChanges(

@@ -5,6 +5,11 @@ import java.net.URI
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore.TableChanges
 
+/**
+  * Defines the API for manipulating and querying a Metastore for versioned tables.
+  *
+  * The operations defined here support both snapshot and partitioned tables.
+  */
 trait Metastore[F[_]] {
 
   /**
