@@ -25,11 +25,11 @@ class SparkHiveMetastoreSpec extends FlatSpec with Matchers with SparkHiveSuite 
 
   "A metastore implementation" should behave like metastoreWithSnapshotSupport(IO { new SparkHiveMetastore },
                                                                                initSnapshotTable(snapshotTable),
-                                                                               snapshotTable)
+                                                                               snapshotTable.name)
 
   it should behave like metastoreWithPartitionsSupport(IO { new SparkHiveMetastore },
                                                        initPartitionedTable(partitionedTable),
-                                                       partitionedTable)
+                                                       partitionedTable.name)
 
   //
   // Tests specific to the Spark/Hive implementation

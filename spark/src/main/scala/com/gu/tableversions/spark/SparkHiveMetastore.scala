@@ -47,10 +47,10 @@ class SparkHiveMetastore[F[_]](implicit spark: SparkSession, F: Sync[F]) extends
 
   private def appliedOp(table: TableName)(operation: TableOperation): F[Unit] =
     operation match {
-      case AddPartition(partitionVersion)                    => addPartition(table, partitionVersion)
-      case UpdatePartitionVersion(partitionVersion)          => updatePartitionVersion(table, partitionVersion)
-      case RemovePartition(partition)                        => removePartition(table, partition)
-      case UpdateTableLocation(tableLocation, versionNumber) => updateTableLocation(table, tableLocation, versionNumber)
+      case AddPartition(partitionVersion)           => addPartition(table, partitionVersion)
+      case UpdatePartitionVersion(partitionVersion) => updatePartitionVersion(table, partitionVersion)
+      case RemovePartition(partition)               => removePartition(table, partition)
+      case UpdateTableVersion(versionNumber)        => updateTableLocation(table, versionNumber)
     }
 
   private def addPartition(table: TableName, partitionVersion: PartitionVersion): F[Unit] = {
@@ -87,18 +87,22 @@ class SparkHiveMetastore[F[_]](implicit spark: SparkSession, F: Sync[F]) extends
     performUpdate(s"Removing partition $partition from table ${table.fullyQualifiedName}", removePartitionQuery)
   }
 
+  private def updateTableLocation(table: TableName, version: VersionNumber): F[Unit] = {
+    def updateLocation(tableLocation: URI): F[Unit] = {
+      val versionedPath = VersionPaths.pathFor(tableLocation, version)
+      val updateQuery = s"ALTER TABLE ${table.fullyQualifiedName} SET LOCATION '$versionedPath'"
+      performUpdate(s"Updating table location of table ${table.fullyQualifiedName}", updateQuery)
+    }
+
+    findTableLocation(table).flatMap(updateLocation).void
+  }
+
   private def versionedPartitionLocation(table: TableName, partitionVersion: PartitionVersion): F[URI] =
     for {
       tableLocation <- findTableLocation(table)
       partitionLocation <- F.delay(partitionVersion.partition.resolvePath(tableLocation))
       versionedPartitionLocation <- F.delay(VersionPaths.pathFor(partitionLocation, partitionVersion.version))
     } yield versionedPartitionLocation
-
-  private def updateTableLocation(table: TableName, tableLocation: URI, version: VersionNumber): F[Unit] = {
-    val versionedPath = VersionPaths.pathFor(tableLocation, version)
-    val updateQuery = s"ALTER TABLE ${table.fullyQualifiedName} SET LOCATION '$versionedPath'"
-    performUpdate(s"Updating table location of table ${table.fullyQualifiedName}", updateQuery)
-  }
 
   private def performUpdate(description: String, query: String): F[Unit] =
     F.delay {

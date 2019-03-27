@@ -18,7 +18,7 @@ trait MetastoreSpec {
   def metastoreWithSnapshotSupport(
       emptyMetastore: IO[Metastore[IO]],
       initHiveTable: IO[Unit],
-      table: TableDefinition): Unit = {
+      table: TableName): Unit = {
 
     it should "allow table versions to be updated for snapshot tables" in {
 
@@ -26,19 +26,19 @@ trait MetastoreSpec {
         metastore <- emptyMetastore
         _ <- initHiveTable
 
-        initialVersion <- metastore.currentVersion(table.name)
+        initialVersion <- metastore.currentVersion(table)
 
-        _ <- metastore.update(table.name, TableChanges(List(UpdateTableLocation(table.location, VersionNumber(1)))))
+        _ <- metastore.update(table, TableChanges(List(UpdateTableVersion(VersionNumber(1)))))
 
-        firstUpdatedVersion <- metastore.currentVersion(table.name)
+        firstUpdatedVersion <- metastore.currentVersion(table)
 
-        _ <- metastore.update(table.name, TableChanges(List(UpdateTableLocation(table.location, VersionNumber(42)))))
+        _ <- metastore.update(table, TableChanges(List(UpdateTableVersion(VersionNumber(42)))))
 
-        secondUpdatedVersion <- metastore.currentVersion(table.name)
+        secondUpdatedVersion <- metastore.currentVersion(table)
 
-        _ <- metastore.update(table.name, TableChanges(List(UpdateTableLocation(table.location, VersionNumber(1)))))
+        _ <- metastore.update(table, TableChanges(List(UpdateTableVersion(VersionNumber(1)))))
 
-        revertedVersion <- metastore.currentVersion(table.name)
+        revertedVersion <- metastore.currentVersion(table)
 
       } yield (initialVersion, firstUpdatedVersion, secondUpdatedVersion, revertedVersion)
 
@@ -57,7 +57,7 @@ trait MetastoreSpec {
   def metastoreWithPartitionsSupport(
       emptyMetastore: IO[Metastore[IO]],
       initHiveTable: IO[Unit],
-      table: TableDefinition): Unit = {
+      table: TableName): Unit = {
 
     val dateCol = PartitionColumn("date")
 
@@ -66,10 +66,10 @@ trait MetastoreSpec {
         metastore <- emptyMetastore
         _ <- initHiveTable
 
-        initialVersion <- metastore.currentVersion(table.name)
+        initialVersion <- metastore.currentVersion(table)
 
         _ <- metastore.update(
-          table.name,
+          table,
           TableChanges(
             List(
               AddPartition(PartitionVersion(Partition(dateCol, "2019-03-01"), VersionNumber(0))),
@@ -79,10 +79,10 @@ trait MetastoreSpec {
           )
         )
 
-        versionAfterFirstUpdate <- metastore.currentVersion(table.name)
+        versionAfterFirstUpdate <- metastore.currentVersion(table)
 
         _ <- metastore.update(
-          table.name,
+          table,
           TableChanges(
             List(
               UpdatePartitionVersion(PartitionVersion(Partition(dateCol, "2019-03-01"), VersionNumber(1))),
@@ -91,10 +91,10 @@ trait MetastoreSpec {
           )
         )
 
-        versionAfterSecondUpdate <- metastore.currentVersion(table.name)
+        versionAfterSecondUpdate <- metastore.currentVersion(table)
 
         _ <- metastore.update(
-          table.name,
+          table,
           TableChanges(
             List(
               RemovePartition(Partition(dateCol, "2019-03-02"))
@@ -102,7 +102,7 @@ trait MetastoreSpec {
           )
         )
 
-        versionAfterPartitionRemoved <- metastore.currentVersion(table.name)
+        versionAfterPartitionRemoved <- metastore.currentVersion(table)
 
       } yield (initialVersion, versionAfterFirstUpdate, versionAfterSecondUpdate, versionAfterPartitionRemoved)
 
@@ -154,7 +154,7 @@ trait MetastoreSpec {
         metastore <- emptyMetastore
         _ <- initHiveTable
         _ <- metastore.update(
-          table.name,
+          table,
           TableChanges(
             List(
               UpdatePartitionVersion(PartitionVersion(Partition(dateCol, "2019-03-01"), VersionNumber(1)))
