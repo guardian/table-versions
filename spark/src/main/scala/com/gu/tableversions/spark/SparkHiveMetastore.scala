@@ -163,7 +163,11 @@ object SparkHiveMetastore {
       .map(columnValue => s"${columnValue.column.name}='${columnValue.value}'")
       .mkString("(", ",", ")")
 
-  private val ColumnValueRegex = "([a-z_]+)=(.+)".r
+  private val ColumnValueRegex = """(?x)
+                                   |([a-z_]+)  # column name
+                                   |=
+                                   |(.+)       # column value
+                                 """.stripMargin.r
 
   private[spark] def parsePartition(partitionStr: String): Partition = {
     def parseColumnValue(str: String): ColumnValue = str match {
