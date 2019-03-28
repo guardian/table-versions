@@ -18,7 +18,7 @@ class SnapshotTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite
   "Writing multiple versions of a snapshot dataset" should "produce distinct versions" ignore {
     import spark.implicits._
 
-    implicit val tableVersions = new InMemoryTableVersions[IO]()
+    implicit val tableVersions = InMemoryTableVersions[IO].unsafeRunSync()
     implicit val metastore = new SparkHiveMetastore[IO]()
 
     val userId = UserId("test user")

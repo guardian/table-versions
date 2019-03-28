@@ -24,7 +24,7 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
   "Writing multiple versions of a date partitioned dataset" should "produce distinct partition versions" ignore {
 
     import spark.implicits._
-    implicit val tableVersions = new InMemoryTableVersions[IO]()
+    implicit val tableVersions = InMemoryTableVersions[IO].unsafeRunSync()
     implicit val metastore = new SparkHiveMetastore[IO]()
 
     val loader =

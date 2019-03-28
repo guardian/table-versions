@@ -4,7 +4,7 @@ import java.net.URI
 import java.time.Instant
 
 import cats.effect.IO
-import com.gu.tableversions.core.TableVersions.{TableUpdate, UpdateMessage, UserId}
+import com.gu.tableversions.core.TableVersions.{AddPartitionVersion, TableUpdate, UpdateMessage, UserId}
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore.TableChanges
 import com.gu.tableversions.metastore.{Metastore, VersionPaths}
@@ -57,7 +57,9 @@ object VersionedDataset {
       _ <- IO(VersionedDataset.writeVersionedPartitions(dataset, partitionPaths))
 
       // Commit written version
-      _ <- tableVersions.commit(TableUpdate(userId, UpdateMessage(message), Instant.now(), workingVersions))
+      _ <- tableVersions.commit(
+        table.name,
+        TableUpdate(userId, UpdateMessage(message), Instant.now(), workingVersions.map(AddPartitionVersion)))
 
       // Get latest version details and Metastore table details and sync the Metastore to match,
       // effectively switching the table to the new version.
