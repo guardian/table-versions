@@ -187,8 +187,6 @@ trait TableVersionsSpec {
       ex.getMessage should include regex "Unknown table.*schema.*table"
     }
 
-    // TODO: invalid commit/mismatched versions (for now anyway)
-
   }
 
   private def timestamp(tick: Long): Instant = Instant.ofEpochSecond(1553705295L + (tick * 60))

@@ -5,7 +5,7 @@ import cats.effect.concurrent.Ref
 import cats.implicits._
 import com.gu.tableversions.core.InMemoryTableVersions.TableUpdates
 import com.gu.tableversions.core.TableVersions.CommitResult.SuccessfulCommit
-import com.gu.tableversions.core.TableVersions.{AddPartitionVersion, PartitionOperation, RemovePartition, TableUpdate}
+import com.gu.tableversions.core.TableVersions._
 
 /**
   * Reference implementation of the table version store. Does not persist state.
@@ -44,24 +44,18 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
   }
 
   override def commit(table: TableName, update: TableVersions.TableUpdate): F[TableVersions.CommitResult] = {
-    // Check if the committed partitions match the "next versions" for this
-    // If not, error
-    // Otherwise add the update to the list
+
+    // Note: we're not checking invalid partition versions here as we suspect this problem will go
+    // away in a later iteration of this interface.
 
     val applyUpdate: TableUpdates => Either[Exception, TableUpdates] = { currentTableUpdates =>
-      // First, just apply the updates to the list in all cases
-      // Then do the bit where I actually check that the committed versions match the current 'next' versions
-
-      def updatesMatchCurrentVersions: Boolean = { true } // TODO!
-
-      if (currentTableUpdates.contains(table) && updatesMatchCurrentVersions) {
+      if (currentTableUpdates.contains(table)) {
         val updated = currentTableUpdates + (table -> (currentTableUpdates(table) :+ update))
         Right(updated)
       } else
         Left(new Exception(s"Unknown table '${table.fullyQualifiedName}'"))
     }
 
-    // TODO: response
     InMemoryTableVersions.modifyEither(allUpdates)(applyUpdate).map(_ => SuccessfulCommit)
   }
 

@@ -9,7 +9,6 @@ import com.gu.tableversions.core.Partition.PartitionColumn
 import com.gu.tableversions.core.TableVersions.UserId
 import com.gu.tableversions.core._
 import com.gu.tableversions.spark.{SparkHiveMetastore, SparkHiveSuite}
-import org.apache.hadoop.fs.{FileSystem, LocatedFileStatus, RemoteIterator}
 import org.scalatest.{FlatSpec, Matchers}
 
 class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
