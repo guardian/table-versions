@@ -91,8 +91,68 @@ trait TableVersionsSpec {
         PartitionVersion(Partition(date, "2019-03-02"), VersionNumber(2)),
         PartitionVersion(Partition(date, "2019-03-03"), VersionNumber(1))
       )
+    }
 
-      // TODO: Remove a partition
+    it should "allow partitions to be removed from a partitioned table" in {
+      val initialPartitionVersions = List(
+        PartitionVersion(Partition(date, "2019-03-01"), VersionNumber(1)),
+        PartitionVersion(Partition(date, "2019-03-02"), VersionNumber(1))
+      )
+
+      val scenario = for {
+        tableVersions <- emptyTableVersions
+        _ <- tableVersions.init(table)
+
+        // Add some partitions
+        _ <- tableVersions.commit(
+          table,
+          TableUpdate(userId,
+                      UpdateMessage("Add initial partitions"),
+                      timestamp(1),
+                      initialPartitionVersions.map(AddPartitionVersion))
+        )
+
+        // Remove one of the partitions
+        _ <- tableVersions.commit(
+          table,
+          TableUpdate(userId,
+                      UpdateMessage("Add initial partitions"),
+                      timestamp(2),
+                      List(RemovePartition(Partition(date, "2019-03-01"))))
+        )
+
+        versionAfterRemove <- tableVersions.currentVersion(table)
+        nextVersionsAfterRemove <- tableVersions.nextVersions(table, List(Partition(date, "2019-03-01")))
+
+        // Re-add the removed partition
+        _ <- tableVersions.commit(
+          table,
+          TableUpdate(userId,
+                      UpdateMessage("First update"),
+                      timestamp(3),
+                      List(AddPartitionVersion(PartitionVersion(Partition(date, "2019-03-01"), VersionNumber(2)))))
+        )
+
+        versionAfterReAdd <- tableVersions.currentVersion(table)
+
+      } yield (versionAfterRemove, nextVersionsAfterRemove, versionAfterReAdd)
+
+      val (versionAfterRemove, nextVersionsAfterRemove, versionAfterReAdd) =
+        scenario.unsafeRunSync()
+
+      versionAfterRemove.partitionVersions shouldBe List(
+        PartitionVersion(Partition(date, "2019-03-02"), VersionNumber(1)))
+
+      // Note: after re-adding a removed partition, the new version needs to be distinct from the old, removed one.
+      nextVersionsAfterRemove shouldBe List(
+        PartitionVersion(Partition(date, "2019-03-01"), VersionNumber(2))
+      )
+
+      versionAfterReAdd.partitionVersions should contain theSameElementsAs
+        List(
+          PartitionVersion(Partition(date, "2019-03-01"), VersionNumber(2)),
+          PartitionVersion(Partition(date, "2019-03-02"), VersionNumber(1))
+        )
     }
 
     it should "allow versions of a snapshot table to be updated and queried" in {

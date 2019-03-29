@@ -30,17 +30,31 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
     } yield InMemoryTableVersions.applyUpdate(TableVersion.empty)(operations)
 
   override def nextVersions(table: TableName, partitions: List[Partition]): F[List[PartitionVersion]] = {
-    def incrementVersion(partitionVersion: PartitionVersion): PartitionVersion =
-      partitionVersion.copy(version = VersionNumber(partitionVersion.version.number + 1))
+    def maxVersions(operations: List[PartitionVersion]): Map[Partition, VersionNumber] =
+      operations.foldLeft(Map.empty[Partition, VersionNumber]) { (agg, partitionVersion) =>
+        val previousVersion =
+          agg.getOrElse(partitionVersion.partition, VersionNumber(0))
+        val maxVersion =
+          if (previousVersion.number > partitionVersion.version.number) previousVersion else partitionVersion.version
+
+        agg + (partitionVersion.partition -> maxVersion)
+      }
+
+    def nextVersion(previousVersion: Option[VersionNumber]): VersionNumber =
+      previousVersion
+        .map(v => VersionNumber(v.number + 1))
+        .getOrElse(VersionNumber(1))
 
     for {
-      tableVersion <- currentVersion(table)
-      nextVersions = partitions.map(
-        partition =>
-          tableVersion.partitionVersions
-            .find(_.partition == partition)
-            .map(incrementVersion)
-            .getOrElse(PartitionVersion(partition, VersionNumber(1))))
+      allTableUpdates <- allUpdates.get
+      tableUpdates <- allTableUpdates
+        .get(table)
+        .fold(F.raiseError[List[TableUpdate]](new Exception(s"Table '$table' not found")))(F.pure)
+      addedPartitions = tableUpdates.flatMap(_.partitionUpdates).collect {
+        case AddPartitionVersion(partitionVersion) => partitionVersion
+      }
+      maxUsedVersions = maxVersions(addedPartitions)
+      nextVersions = partitions.map(p => PartitionVersion(p, nextVersion(maxUsedVersions.get(p))))
     } yield nextVersions
   }
 
