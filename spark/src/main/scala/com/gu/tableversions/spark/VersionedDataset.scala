@@ -64,8 +64,9 @@ object VersionedDataset {
       // Get latest version details and Metastore table details and sync the Metastore to match,
       // effectively switching the table to the new version.
       latestTableVersion <- tableVersions.currentVersion(table.name)
+
       metastoreVersion <- metastore.currentVersion(table.name)
-      metastoreUpdate = metastore.computeChanges(latestTableVersion, metastoreVersion)
+      metastoreUpdate = metastore.computeChanges(metastoreVersion, latestTableVersion)
 
       // Sync Metastore to match
       _ <- metastore.update(table.name, metastoreUpdate)
