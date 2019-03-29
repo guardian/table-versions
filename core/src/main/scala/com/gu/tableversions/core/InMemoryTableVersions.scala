@@ -6,6 +6,7 @@ import cats.implicits._
 import com.gu.tableversions.core.InMemoryTableVersions.TableUpdates
 import com.gu.tableversions.core.TableVersions.CommitResult.SuccessfulCommit
 import com.gu.tableversions.core.TableVersions._
+import com.gu.tableversions.core.util.RichRef._
 
 /**
   * Reference implementation of the table version store. Does not persist state.
@@ -56,22 +57,12 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
         Left(new Exception(s"Unknown table '${table.fullyQualifiedName}'"))
     }
 
-    InMemoryTableVersions.modifyEither(allUpdates)(applyUpdate).map(_ => SuccessfulCommit)
+    allUpdates.modifyEither(applyUpdate).map(_ => SuccessfulCommit)
   }
 
 }
 
 object InMemoryTableVersions {
-
-  // TODO: Put somewhere else, as syntax on `Ref`
-  def modifyEither[F[_]: Sync, A, E <: Throwable](ref: Ref[F, A])(f: A => Either[E, A]): F[Unit] =
-    ref
-      .modify(a =>
-        f(a) match {
-          case Left(e)     => (a, e.raiseError[F, Unit])
-          case Right(newA) => (newA, ().pure[F])
-      })
-      .flatten
 
   type TableUpdates = Map[TableName, List[TableUpdate]]
 
