@@ -5,6 +5,7 @@ import cats.effect.concurrent.Ref
 import cats.implicits._
 import com.gu.tableversions.core.InMemoryTableVersions.TableUpdates
 import com.gu.tableversions.core.TableVersions.CommitResult.SuccessfulCommit
+import com.gu.tableversions.core.TableVersions.PartitionOperation.{AddPartitionVersion, RemovePartition}
 import com.gu.tableversions.core.TableVersions._
 import com.gu.tableversions.core.util.RichRef._
 
@@ -71,7 +72,7 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
         Left(new Exception(s"Unknown table '${table.fullyQualifiedName}'"))
     }
 
-    allUpdates.modifyEither(applyUpdate).map(_ => SuccessfulCommit)
+    allUpdates.modifyEither(applyUpdate).as(SuccessfulCommit)
   }
 
 }
@@ -84,10 +85,7 @@ object InMemoryTableVersions {
     * Safe constructor
     */
   def apply[F[_]](implicit F: Sync[F]): F[InMemoryTableVersions[F]] =
-    for {
-      ref <- Ref[F].of(Map[TableName, List[TableUpdate]]())
-      service = new InMemoryTableVersions[F](ref)
-    } yield service
+    Ref[F].of(Map[TableName, List[TableUpdate]]()).map(new InMemoryTableVersions[F](_))
 
   /**
     * Produce current table version based on history of updates.

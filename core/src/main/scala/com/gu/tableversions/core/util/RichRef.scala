@@ -19,7 +19,7 @@ object RichRef {
         .modify(a =>
           f(a) match {
             case Left(e)     => (a, e.raiseError[F, Unit])
-            case Right(newA) => (newA, ().pure[F])
+            case Right(newA) => (newA, F.unit)
         })
         .flatten
   }

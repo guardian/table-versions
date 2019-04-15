@@ -5,6 +5,7 @@ import java.time.Instant
 import cats.effect.IO
 import com.gu.tableversions.core.Partition.PartitionColumn
 import com.gu.tableversions.core.TableVersions.CommitResult.SuccessfulCommit
+import com.gu.tableversions.core.TableVersions.PartitionOperation.{AddPartitionVersion, RemovePartition}
 import com.gu.tableversions.core.TableVersions._
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -27,16 +28,21 @@ trait TableVersionsSpec {
       val scenario = for {
         tableVersions <- emptyTableVersions
         _ <- tableVersions.init(table)
+        tableVersion1 <- tableVersions.currentVersion(table)
+
         _ <- tableVersions.init(table)
+        tableVersion2 <- tableVersions.currentVersion(table)
+
         _ <- tableVersions.init(table)
+        tableVersion3 <- tableVersions.currentVersion(table)
 
-        tableVersion <- tableVersions.currentVersion(table)
+      } yield (tableVersion1, tableVersion2, tableVersion3)
 
-      } yield tableVersion
+      val (tableVersion1, tableVersion2, tableVersion3) = scenario.unsafeRunSync()
 
-      val tableVersion = scenario.unsafeRunSync()
-
-      tableVersion shouldBe TableVersion.empty
+      tableVersion1 shouldBe TableVersion.empty
+      tableVersion2 shouldBe tableVersion1
+      tableVersion3 shouldBe tableVersion1
     }
 
     it should "allow partition versions of a partitioned table to be updated and queried" in {

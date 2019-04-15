@@ -4,7 +4,8 @@ import java.net.URI
 import java.time.Instant
 
 import cats.effect.IO
-import com.gu.tableversions.core.TableVersions.{AddPartitionVersion, TableUpdate, UpdateMessage, UserId}
+import com.gu.tableversions.core.TableVersions.{TableUpdate, UpdateMessage, UserId}
+import com.gu.tableversions.core.TableVersions.PartitionOperation.AddPartitionVersion
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore.TableChanges
 import com.gu.tableversions.metastore.{Metastore, VersionPaths}

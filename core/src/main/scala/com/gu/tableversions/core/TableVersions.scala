@@ -55,7 +55,10 @@ object TableVersions {
 
   /** ADT for operations on individual partitions. */
   sealed trait PartitionOperation
-  final case class AddPartitionVersion(version: PartitionVersion) extends PartitionOperation
-  final case class RemovePartition(partition: Partition) extends PartitionOperation
+
+  object PartitionOperation {
+    final case class AddPartitionVersion(version: PartitionVersion) extends PartitionOperation
+    final case class RemovePartition(partition: Partition) extends PartitionOperation
+  }
 
 }
