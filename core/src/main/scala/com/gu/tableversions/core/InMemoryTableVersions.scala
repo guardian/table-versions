@@ -1,11 +1,14 @@
 package com.gu.tableversions.core
 
+import java.sql.Timestamp
+import java.time.Instant
+
 import cats.effect.Sync
 import cats.effect.concurrent.Ref
 import cats.implicits._
 import com.gu.tableversions.core.InMemoryTableVersions.TableUpdates
 import com.gu.tableversions.core.TableVersions.CommitResult.SuccessfulCommit
-import com.gu.tableversions.core.TableVersions.PartitionOperation.{AddPartitionVersion, RemovePartition}
+import com.gu.tableversions.core.TableVersions.PartitionOperation.{AddPartitionVersion, InitTable, RemovePartition}
 import com.gu.tableversions.core.TableVersions._
 import com.gu.tableversions.core.util.RichRef._
 
@@ -15,9 +18,22 @@ import com.gu.tableversions.core.util.RichRef._
 class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(implicit F: Sync[F])
     extends TableVersions[F] {
 
-  override def init(table: TableName): F[Unit] =
+  override def init(
+      table: TableName,
+      isSnapshot: Boolean,
+      userId: UserId,
+      message: UpdateMessage,
+      timestamp: Instant): F[Unit] =
     allUpdates.update { prev =>
-      if (prev.contains(table)) prev else prev + (table -> Nil)
+      if (prev.contains(table)) prev
+      else
+        prev + (table -> List(
+          TableUpdate(
+            userId,
+            message,
+            timestamp = timestamp,
+            partitionUpdates = List(InitTable(table, isSnapshot))
+          )))
     }
 
   override def currentVersion(table: TableName): F[TableVersion] =
@@ -28,7 +44,16 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
         .get(table)
         .fold(F.raiseError[List[TableUpdate]](new Exception(s"Table '$table' not found")))(F.pure)
       operations = tableUpdates.flatMap(_.partitionUpdates)
-    } yield InMemoryTableVersions.applyUpdate(TableVersion.empty)(operations)
+    } yield
+      if (isSnapShot(operations))
+        InMemoryTableVersions.latestSnapshotTableVersion(operations)
+      else
+        InMemoryTableVersions.applyPartitionUpdates(PartitionedTableVersion(Map.empty))(operations)
+
+  def isSnapShot(operations: List[PartitionOperation]) = operations match {
+    case InitTable(_, isSnapshot) :: _ => isSnapshot
+    case _                             => throw new IllegalArgumentException("First operation should be InitTable")
+  }
 
   override def nextVersions(table: TableName, partitions: List[Partition]): F[Map[Partition, Version]] = {
     def maxVersions(operations: List[(Partition, Version)]): Map[Partition, Version] =
@@ -88,21 +113,30 @@ object InMemoryTableVersions {
   def apply[F[_]](implicit F: Sync[F]): F[InMemoryTableVersions[F]] =
     Ref[F].of(Map[TableName, List[TableUpdate]]()).map(new InMemoryTableVersions[F](_))
 
+  private[core] def latestSnapshotTableVersion(operations: List[PartitionOperation]): SnapshotTableVersion = {
+    val versions = operations.collect {
+      case AddPartitionVersion(_, version) => version
+    }
+    SnapshotTableVersion(versions.lastOption.getOrElse(Version(0)))
+  }
+
   /**
     * Produce current table version based on history of updates.
     */
-  private[core] def applyUpdate(initial: TableVersion)(operations: List[PartitionOperation]): TableVersion = {
+  private[core] def applyPartitionUpdates(initial: PartitionedTableVersion)(
+      operations: List[PartitionOperation]): PartitionedTableVersion = {
 
     def applyOp(agg: Map[Partition, Version], op: PartitionOperation): Map[Partition, Version] = op match {
       case AddPartitionVersion(partition: Partition, version: Version) =>
         agg + (partition -> version)
       case RemovePartition(partition: Partition) =>
         agg - partition
+      case _: InitTable => agg
     }
 
     val latestVersions = operations.foldLeft(initial.partitionVersions)(applyOp)
 
-    TableVersion(latestVersions)
+    PartitionedTableVersion(latestVersions)
   }
 
 }

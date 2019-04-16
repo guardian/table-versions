@@ -27,20 +27,20 @@ trait TableVersionsSpec {
 
       val scenario = for {
         tableVersions <- emptyTableVersions
-        _ <- tableVersions.init(table)
+        _ <- tableVersions.init(table, isSnapshot = false)
         tableVersion1 <- tableVersions.currentVersion(table)
 
-        _ <- tableVersions.init(table)
+        _ <- tableVersions.init(table, isSnapshot = false)
         tableVersion2 <- tableVersions.currentVersion(table)
 
-        _ <- tableVersions.init(table)
+        _ <- tableVersions.init(table, isSnapshot = false)
         tableVersion3 <- tableVersions.currentVersion(table)
 
       } yield (tableVersion1, tableVersion2, tableVersion3)
 
       val (tableVersion1, tableVersion2, tableVersion3) = scenario.unsafeRunSync()
 
-      tableVersion1 shouldBe TableVersion.empty
+      tableVersion1 shouldBe PartitionedTableVersion(Map.empty)
       tableVersion2 shouldBe tableVersion1
       tableVersion3 shouldBe tableVersion1
     }
@@ -59,7 +59,7 @@ trait TableVersionsSpec {
 
       val scenario = for {
         tableVersions <- emptyTableVersions
-        _ <- tableVersions.init(table)
+        _ <- tableVersions.init(table, isSnapshot = false)
 
         initialTableVersion <- tableVersions.currentVersion(table)
 
@@ -88,17 +88,18 @@ trait TableVersionsSpec {
       val (initialTableVersion, commitResult1, version1, nextVersions1, commitResult2, version2) =
         scenario.unsafeRunSync()
 
-      initialTableVersion shouldBe TableVersion.empty
+      initialTableVersion shouldBe PartitionedTableVersion(Map.empty)
       commitResult1 shouldBe SuccessfulCommit
-      version1 shouldBe TableVersion(initialPartitionVersions)
+      version1 shouldBe PartitionedTableVersion(initialPartitionVersions)
 
       nextVersions1 shouldBe partitionUpdate1
       commitResult2 shouldBe SuccessfulCommit
-      version2.partitionVersions shouldEqual Map(
-        Partition(date, "2019-03-01") -> Version(1),
-        Partition(date, "2019-03-02") -> Version(2),
-        Partition(date, "2019-03-03") -> Version(1)
-      )
+      version2 shouldEqual PartitionedTableVersion(
+        Map(
+          Partition(date, "2019-03-01") -> Version(1),
+          Partition(date, "2019-03-02") -> Version(2),
+          Partition(date, "2019-03-03") -> Version(1)
+        ))
     }
 
     it should "allow partitions to be removed from a partitioned table" in {
@@ -109,7 +110,7 @@ trait TableVersionsSpec {
 
       val scenario = for {
         tableVersions <- emptyTableVersions
-        _ <- tableVersions.init(table)
+        _ <- tableVersions.init(table, isSnapshot = false)
 
         // Add some partitions
         _ <- tableVersions.commit(
@@ -148,27 +149,28 @@ trait TableVersionsSpec {
       val (versionAfterRemove, nextVersionsAfterRemove, versionAfterReAdd) =
         scenario.unsafeRunSync()
 
-      versionAfterRemove.partitionVersions shouldBe Map(Partition(date, "2019-03-02") -> Version(1))
+      versionAfterRemove shouldBe PartitionedTableVersion(Map(Partition(date, "2019-03-02") -> Version(1)))
 
       // Note: after re-adding a removed partition, the new version needs to be distinct from the old, removed one.
       nextVersionsAfterRemove shouldBe Map(
         Partition(date, "2019-03-01") -> Version(2)
       )
 
-      versionAfterReAdd.partitionVersions shouldEqual Map(
-        Partition(date, "2019-03-01") -> Version(2),
-        Partition(date, "2019-03-02") -> Version(1)
-      )
+      versionAfterReAdd shouldEqual PartitionedTableVersion(
+        Map(
+          Partition(date, "2019-03-01") -> Version(2),
+          Partition(date, "2019-03-02") -> Version(1)
+        ))
     }
 
     it should "allow versions of a snapshot table to be updated and queried" in {
 
-      val version1 = TableVersion.snapshotVersion(Version(1))
-      val version2 = TableVersion.snapshotVersion(Version(2))
+      val version1 = SnapshotTableVersion(Version(1))
+      val version2 = SnapshotTableVersion(Version(2))
 
       val scenario = for {
         tableVersions <- emptyTableVersions
-        _ <- tableVersions.init(table)
+        _ <- tableVersions.init(table, isSnapshot = true)
         initialTableVersion <- tableVersions.currentVersion(table)
 
         nextVersion1 <- tableVersions.nextVersions(table, List(Partition.snapshotPartition))
@@ -177,7 +179,7 @@ trait TableVersionsSpec {
           TableUpdate(userId,
                       UpdateMessage("First commit"),
                       timestamp(1),
-                      version1.partitionVersions.map(AddPartitionVersion.tupled).toList))
+                      List(AddPartitionVersion(Partition.snapshotPartition, version1.version))))
         currentVersion1 <- tableVersions.currentVersion(table)
 
         nextVersion2 <- tableVersions.nextVersions(table, List(Partition.snapshotPartition))
@@ -186,7 +188,7 @@ trait TableVersionsSpec {
           TableUpdate(userId,
                       UpdateMessage("Second commit"),
                       timestamp(2),
-                      version1.partitionVersions.map(AddPartitionVersion.tupled).toList))
+                      List(AddPartitionVersion(Partition.snapshotPartition, version2.version))))
         currentVersion2 <- tableVersions.currentVersion(table)
 
       } yield
@@ -207,13 +209,13 @@ trait TableVersionsSpec {
            currentVersion2) =
         scenario.unsafeRunSync()
 
-      initialTableVersion shouldBe TableVersion.empty
-      nextVersion1 shouldBe version1.partitionVersions
+      initialTableVersion shouldBe SnapshotTableVersion(Version(0))
+      nextVersion1 shouldBe Map(Partition.snapshotPartition -> version1.version)
 
       commitResult1 shouldBe SuccessfulCommit
       currentVersion1 shouldBe version1
 
-      nextVersion2 shouldBe version2.partitionVersions
+      nextVersion2 shouldBe Map(Partition.snapshotPartition -> version2.version)
       commitResult2 shouldBe SuccessfulCommit
       currentVersion2 shouldBe currentVersion2
     }

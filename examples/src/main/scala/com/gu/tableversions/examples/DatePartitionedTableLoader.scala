@@ -38,7 +38,7 @@ class DatePartitionedTableLoader(table: TableDefinition)(
     spark.sql(ddl)
 
     // Initialise version tracking for table
-    tableVersions.init(table.name).unsafeRunSync()
+    tableVersions.init(table.name, isSnapshot = false).unsafeRunSync()
   }
 
   def pageviews(): Dataset[Pageview] =

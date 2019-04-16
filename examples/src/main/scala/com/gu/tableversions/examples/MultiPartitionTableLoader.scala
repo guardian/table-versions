@@ -38,7 +38,7 @@ class MultiPartitionTableLoader(table: TableDefinition)(
     ()
 
     // Initialise version tracking for table
-    tableVersions.init(table.name).unsafeRunSync()
+    tableVersions.init(table.name, isSnapshot = false).unsafeRunSync()
   }
 
   def insert(dataset: Dataset[AdImpression], userId: UserId, message: String): Unit = {

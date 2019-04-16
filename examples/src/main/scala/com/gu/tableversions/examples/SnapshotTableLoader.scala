@@ -35,7 +35,7 @@ class SnapshotTableLoader(table: TableDefinition)(
     spark.sql(ddl)
 
     // Initialise version tracking for table
-    tableVersions.init(table.name).unsafeRunSync()
+    tableVersions.init(table.name, isSnapshot = true).unsafeRunSync()
   }
 
   def users(): Dataset[User] =

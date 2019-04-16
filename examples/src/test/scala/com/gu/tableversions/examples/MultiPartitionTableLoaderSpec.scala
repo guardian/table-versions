@@ -70,7 +70,7 @@ class MultiPartitionTableLoaderSpec extends FlatSpec with Matchers with SparkHiv
     // to try to avoid this.
     val tableVersionAfterUpdate = metastore.currentVersion(table.name).unsafeRunSync()
     tableVersionAfterUpdate shouldBe
-      TableVersion(
+      PartitionedTableVersion(
         Map(
           Partition(List(ColumnValue(PartitionColumn("impression_date"), "2019-03-13"),
                          ColumnValue(PartitionColumn("processed_date"), "2019-03-14"))) ->

@@ -2,7 +2,7 @@ package com.gu.tableversions.core
 
 import java.time.Instant
 
-import com.gu.tableversions.core.TableVersions.CommitResult
+import com.gu.tableversions.core.TableVersions.{CommitResult, UpdateMessage, UserId}
 
 /**
   * This defines the interface for querying and updating table version information tracked by the system.
@@ -13,7 +13,12 @@ trait TableVersions[F[_]] {
     * Start tracking version information for given table.
     * This must be called before any other operations can be performed on this table.
     */
-  def init(table: TableName): F[Unit]
+  def init(
+      table: TableName,
+      isSnapshot: Boolean,
+      userId: UserId = UserId("Internal"),
+      message: UpdateMessage = UpdateMessage("Table init"),
+      timestamp: Instant = Instant.now()): F[Unit]
 
   /** Get details about partition versions in a table. */
   def currentVersion(table: TableName): F[TableVersion]
@@ -57,6 +62,7 @@ object TableVersions {
   sealed trait PartitionOperation
 
   object PartitionOperation {
+    final case class InitTable(tableName: TableName, isSnapshot: Boolean) extends PartitionOperation
     final case class AddPartitionVersion(partition: Partition, version: Version) extends PartitionOperation
     final case class RemovePartition(partition: Partition) extends PartitionOperation
   }
