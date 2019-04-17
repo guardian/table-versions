@@ -22,18 +22,17 @@ trait TableVersionsSpec {
     val table = TableName("schema", "table")
     val userId = UserId("Test user")
     val date = PartitionColumn("date")
-
     it should "have an idempotent 'init' operation" in {
 
       val scenario = for {
         tableVersions <- emptyTableVersions
-        _ <- tableVersions.init(table, isSnapshot = false)
+        _ <- tableVersions.init(table, isSnapshot = false, userId, UpdateMessage("init1"), Instant.now())
         tableVersion1 <- tableVersions.currentVersion(table)
 
-        _ <- tableVersions.init(table, isSnapshot = false)
+        _ <- tableVersions.init(table, isSnapshot = false, userId, UpdateMessage("init2"), Instant.now())
         tableVersion2 <- tableVersions.currentVersion(table)
 
-        _ <- tableVersions.init(table, isSnapshot = false)
+        _ <- tableVersions.init(table, isSnapshot = false, userId, UpdateMessage("init3"), Instant.now())
         tableVersion3 <- tableVersions.currentVersion(table)
 
       } yield (tableVersion1, tableVersion2, tableVersion3)
@@ -59,7 +58,7 @@ trait TableVersionsSpec {
 
       val scenario = for {
         tableVersions <- emptyTableVersions
-        _ <- tableVersions.init(table, isSnapshot = false)
+        _ <- tableVersions.init(table, isSnapshot = false, userId, UpdateMessage("init"), Instant.now())
 
         initialTableVersion <- tableVersions.currentVersion(table)
 
@@ -110,7 +109,7 @@ trait TableVersionsSpec {
 
       val scenario = for {
         tableVersions <- emptyTableVersions
-        _ <- tableVersions.init(table, isSnapshot = false)
+        _ <- tableVersions.init(table, isSnapshot = false, userId, UpdateMessage("init"), Instant.now())
 
         // Add some partitions
         _ <- tableVersions.commit(
@@ -170,7 +169,7 @@ trait TableVersionsSpec {
 
       val scenario = for {
         tableVersions <- emptyTableVersions
-        _ <- tableVersions.init(table, isSnapshot = true)
+        _ <- tableVersions.init(table, isSnapshot = true, userId, UpdateMessage("init"), Instant.now())
         initialTableVersion <- tableVersions.currentVersion(table)
         nextVersion1 <- tableVersions.nextVersions(table, List(Partition.snapshotPartition))
         commitResult1 <- tableVersions.commit(
