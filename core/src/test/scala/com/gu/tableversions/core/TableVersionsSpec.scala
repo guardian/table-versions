@@ -5,7 +5,7 @@ import java.time.Instant
 import cats.effect.IO
 import com.gu.tableversions.core.Partition.PartitionColumn
 import com.gu.tableversions.core.TableVersions.CommitResult.SuccessfulCommit
-import com.gu.tableversions.core.TableVersions.PartitionOperation.{AddPartitionVersion, RemovePartition}
+import com.gu.tableversions.core.TableVersions.TableOperation.{AddPartitionVersion, AddTableVersion, RemovePartition}
 import com.gu.tableversions.core.TableVersions._
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -172,23 +172,16 @@ trait TableVersionsSpec {
         tableVersions <- emptyTableVersions
         _ <- tableVersions.init(table, isSnapshot = true)
         initialTableVersion <- tableVersions.currentVersion(table)
-
         nextVersion1 <- tableVersions.nextVersions(table, List(Partition.snapshotPartition))
         commitResult1 <- tableVersions.commit(
           table,
-          TableUpdate(userId,
-                      UpdateMessage("First commit"),
-                      timestamp(1),
-                      List(AddPartitionVersion(Partition.snapshotPartition, version1.version))))
+          TableUpdate(userId, UpdateMessage("First commit"), timestamp(1), List(AddTableVersion(version1.version))))
         currentVersion1 <- tableVersions.currentVersion(table)
 
         nextVersion2 <- tableVersions.nextVersions(table, List(Partition.snapshotPartition))
         commitResult2 <- tableVersions.commit(
           table,
-          TableUpdate(userId,
-                      UpdateMessage("Second commit"),
-                      timestamp(2),
-                      List(AddPartitionVersion(Partition.snapshotPartition, version2.version))))
+          TableUpdate(userId, UpdateMessage("Second commit"), timestamp(2), List(AddTableVersion(version2.version))))
         currentVersion2 <- tableVersions.currentVersion(table)
 
       } yield

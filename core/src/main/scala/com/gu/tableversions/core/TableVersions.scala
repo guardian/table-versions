@@ -42,7 +42,7 @@ object TableVersions {
       userId: UserId,
       message: UpdateMessage,
       timestamp: Instant,
-      partitionUpdates: List[PartitionOperation])
+      operations: List[TableOperation])
 
   final case class UpdateMessage(content: String) extends AnyVal
 
@@ -58,13 +58,14 @@ object TableVersions {
 
   case class ErrorMessage(value: String) extends AnyVal
 
-  /** ADT for operations on individual partitions. */
-  sealed trait PartitionOperation
+  /** ADT for operations on tables. */
+  sealed trait TableOperation
 
-  object PartitionOperation {
-    final case class InitTable(tableName: TableName, isSnapshot: Boolean) extends PartitionOperation
-    final case class AddPartitionVersion(partition: Partition, version: Version) extends PartitionOperation
-    final case class RemovePartition(partition: Partition) extends PartitionOperation
+  object TableOperation {
+    final case class InitTable(tableName: TableName, isSnapshot: Boolean) extends TableOperation
+    final case class AddTableVersion(version: Version) extends TableOperation
+    final case class AddPartitionVersion(partition: Partition, version: Version) extends TableOperation
+    final case class RemovePartition(partition: Partition) extends TableOperation
   }
 
 }

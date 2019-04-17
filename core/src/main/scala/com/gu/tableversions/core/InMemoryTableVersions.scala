@@ -1,6 +1,5 @@
 package com.gu.tableversions.core
 
-import java.sql.Timestamp
 import java.time.Instant
 
 import cats.effect.Sync
@@ -8,7 +7,7 @@ import cats.effect.concurrent.Ref
 import cats.implicits._
 import com.gu.tableversions.core.InMemoryTableVersions.TableUpdates
 import com.gu.tableversions.core.TableVersions.CommitResult.SuccessfulCommit
-import com.gu.tableversions.core.TableVersions.PartitionOperation.{AddPartitionVersion, InitTable, RemovePartition}
+import com.gu.tableversions.core.TableVersions.TableOperation._
 import com.gu.tableversions.core.TableVersions._
 import com.gu.tableversions.core.util.RichRef._
 
@@ -32,7 +31,7 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
             userId,
             message,
             timestamp = timestamp,
-            partitionUpdates = List(InitTable(table, isSnapshot))
+            operations = List(InitTable(table, isSnapshot))
           )))
     }
 
@@ -43,47 +42,61 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
       tableUpdates <- allTableUpdates
         .get(table)
         .fold(F.raiseError[List[TableUpdate]](new Exception(s"Table '$table' not found")))(F.pure)
-      operations = tableUpdates.flatMap(_.partitionUpdates)
+      operations = tableUpdates.flatMap(_.operations)
     } yield
       if (isSnapShot(operations))
         InMemoryTableVersions.latestSnapshotTableVersion(operations)
       else
         InMemoryTableVersions.applyPartitionUpdates(PartitionedTableVersion(Map.empty))(operations)
 
-  def isSnapShot(operations: List[PartitionOperation]) = operations match {
+  def isSnapShot(operations: List[TableOperation]) = operations match {
     case InitTable(_, isSnapshot) :: _ => isSnapshot
     case _                             => throw new IllegalArgumentException("First operation should be InitTable")
   }
 
-  override def nextVersions(table: TableName, partitions: List[Partition]): F[Map[Partition, Version]] = {
-    def maxVersions(operations: List[(Partition, Version)]): Map[Partition, Version] =
-      operations.foldLeft(Map.empty[Partition, Version]) {
-        case (agg, (partition, partitionVersion)) =>
-          val previousVersion =
-            agg.getOrElse(partition, Version(0))
-          val maxVersion =
-            if (previousVersion.number > partitionVersion.number) previousVersion else partitionVersion
+  override def nextVersions(table: TableName, partitions: List[Partition]): F[Map[Partition, Version]] =
+    if (partitions == List(Partition.snapshotPartition)) {
+      for {
+        allTableUpdates <- allUpdates.get
+        tableUpdates <- allTableUpdates
+          .get(table)
+          .fold(F.raiseError[List[TableUpdate]](new Exception(s"Table '${table.fullyQualifiedName}' not found")))(
+            F.pure)
+        tableVersions = tableUpdates.flatMap(_.operations).collect {
+          case AddTableVersion(version) => version
+        }
+        lastVersion = tableVersions.lastOption.getOrElse(Version(0))
+      } yield Map(Partition.snapshotPartition -> Version(lastVersion.number + 1))
+    } else {
+      def maxVersions(operations: List[(Partition, Version)]): Map[Partition, Version] =
+        operations.foldLeft(Map.empty[Partition, Version]) {
+          case (agg, (partition, partitionVersion)) =>
+            val previousVersion =
+              agg.getOrElse(partition, Version(0))
+            val maxVersion =
+              if (previousVersion.number > partitionVersion.number) previousVersion else partitionVersion
 
-          agg + (partition -> maxVersion)
-      }
+            agg + (partition -> maxVersion)
+        }
 
-    def nextVersion(previousVersion: Option[Version]): Version =
-      previousVersion
-        .map(v => Version(v.number + 1))
-        .getOrElse(Version(1))
+      def nextVersion(previousVersion: Option[Version]): Version =
+        previousVersion
+          .map(v => Version(v.number + 1))
+          .getOrElse(Version(1))
 
-    for {
-      allTableUpdates <- allUpdates.get
-      tableUpdates <- allTableUpdates
-        .get(table)
-        .fold(F.raiseError[List[TableUpdate]](new Exception(s"Table '${table.fullyQualifiedName}' not found")))(F.pure)
-      addedPartitions = tableUpdates.flatMap(_.partitionUpdates).collect {
-        case AddPartitionVersion(partition, version) => (partition, version)
-      }
-      maxUsedVersions = maxVersions(addedPartitions)
-      nextVersions = partitions.map(p => p -> nextVersion(maxUsedVersions.get(p)))
-    } yield nextVersions.toMap
-  }
+      for {
+        allTableUpdates <- allUpdates.get
+        tableUpdates <- allTableUpdates
+          .get(table)
+          .fold(F.raiseError[List[TableUpdate]](new Exception(s"Table '${table.fullyQualifiedName}' not found")))(
+            F.pure)
+        addedPartitions = tableUpdates.flatMap(_.operations).collect {
+          case AddPartitionVersion(partition, version) => (partition, version)
+        }
+        maxUsedVersions = maxVersions(addedPartitions)
+        nextVersions = partitions.map(p => p -> nextVersion(maxUsedVersions.get(p)))
+      } yield nextVersions.toMap
+    }
 
   override def commit(table: TableName, update: TableVersions.TableUpdate): F[TableVersions.CommitResult] = {
 
@@ -113,9 +126,9 @@ object InMemoryTableVersions {
   def apply[F[_]](implicit F: Sync[F]): F[InMemoryTableVersions[F]] =
     Ref[F].of(Map[TableName, List[TableUpdate]]()).map(new InMemoryTableVersions[F](_))
 
-  private[core] def latestSnapshotTableVersion(operations: List[PartitionOperation]): SnapshotTableVersion = {
+  private[core] def latestSnapshotTableVersion(operations: List[TableOperation]): SnapshotTableVersion = {
     val versions = operations.collect {
-      case AddPartitionVersion(_, version) => version
+      case AddTableVersion(version) => version
     }
     SnapshotTableVersion(versions.lastOption.getOrElse(Version(0)))
   }
@@ -124,14 +137,14 @@ object InMemoryTableVersions {
     * Produce current table version based on history of updates.
     */
   private[core] def applyPartitionUpdates(initial: PartitionedTableVersion)(
-      operations: List[PartitionOperation]): PartitionedTableVersion = {
+      operations: List[TableOperation]): PartitionedTableVersion = {
 
-    def applyOp(agg: Map[Partition, Version], op: PartitionOperation): Map[Partition, Version] = op match {
+    def applyOp(agg: Map[Partition, Version], op: TableOperation): Map[Partition, Version] = op match {
       case AddPartitionVersion(partition: Partition, version: Version) =>
         agg + (partition -> version)
       case RemovePartition(partition: Partition) =>
         agg - partition
-      case _: InitTable => agg
+      case _: InitTable | _: AddTableVersion => agg
     }
 
     val latestVersions = operations.foldLeft(initial.partitionVersions)(applyOp)
