@@ -12,16 +12,15 @@ import cats.effect.IO
   */
 final case class Partition(columnValues: List[Partition.ColumnValue]) {
 
+  require(columnValues.nonEmpty, "Must have at least one partition column")
+
   /** Given a base path for the table, return the path to the partition. */
   def resolvePath(tableLocation: URI): URI = {
     def normalised(dir: URI): URI = if (dir.toString.endsWith("/")) dir else new URI(dir.toString + "/")
-    if (this == Partition.snapshotPartition) {
-      tableLocation
-    } else {
-      val partitionsSuffix =
-        columnValues.map(columnValue => s"${columnValue.column.name}=${columnValue.value}").mkString("", "/", "/")
-      normalised(tableLocation).resolve(partitionsSuffix)
-    }
+
+    val partitionsSuffix =
+      columnValues.map(columnValue => s"${columnValue.column.name}=${columnValue.value}").mkString("", "/", "/")
+    normalised(tableLocation).resolve(partitionsSuffix)
   }
 }
 
@@ -36,9 +35,6 @@ object Partition {
   case class PartitionColumn(name: String) extends AnyVal
 
   case class ColumnValue(column: PartitionColumn, value: String)
-
-  // The special case partition that represents the root partition of a snapshot table.
-  val snapshotPartition: Partition = Partition(Nil)
 
 }
 
@@ -84,7 +80,9 @@ final case class TableName(schema: String, name: String) {
   def fullyQualifiedName: String = s"$schema.$name"
 }
 
-final case class TableDefinition(name: TableName, location: URI, partitionSchema: PartitionSchema)
+final case class TableDefinition(name: TableName, location: URI, partitionSchema: PartitionSchema) {
+  def isSnapshot: Boolean = partitionSchema == PartitionSchema.snapshot
+}
 
 /**
   * The complete set of version information for all partitions in a table.

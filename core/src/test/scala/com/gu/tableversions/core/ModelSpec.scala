@@ -10,11 +10,6 @@ class ModelSpec extends FlatSpec with Matchers {
 
   val tableLocation = new URI("s3://bucket/data/")
 
-  "Resolving the path of a partition for an empty partition list" should "return the table location itself" in {
-    val partition = Partition(Nil)
-    partition.resolvePath(tableLocation) shouldBe tableLocation
-  }
-
   "Resolving the path of a partition with a single partition column" should "produce path relative to the table location" in {
     val partition = Partition(List(Partition.ColumnValue(PartitionColumn("date"), "2019-01-20")))
     partition.resolvePath(tableLocation) shouldBe new URI("s3://bucket/data/date=2019-01-20/")
