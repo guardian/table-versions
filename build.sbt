@@ -14,6 +14,7 @@ lazy val commonSettings = Seq(
   scalafmtOnCompile := true,
   libraryDependencies ++= Seq(
     scalatest % Test,
+    "org.apache.hadoop" % "hadoop-common" % "2.9.2" % Test,
     "org.scalacheck" %% "scalacheck" % "1.14.0" % Test
   ),
   resolvers += Resolver.sonatypeRepo("releases"),

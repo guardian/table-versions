@@ -10,7 +10,6 @@ import com.gu.tableversions.core.{Partition, Version}
   * Encodes the mapping between version numbers and storage paths.
   */
 object VersionPaths {
-
   /**
     * @return the fully resolved paths for each partitions, derived from the table location and version
     */
@@ -33,7 +32,9 @@ object VersionPaths {
       partitionPath
     else {
       def normalised(path: String): String = if (path.endsWith("/")) path else path + "/"
+
       def versioned(path: String): String = s"$path${version.label}"
+
       new URI(versioned(normalised(partitionPath.toString)))
     }
 

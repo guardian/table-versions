@@ -14,14 +14,26 @@ object RichRef {
       * If the provided update function `f` returns a `Right[A]`, the contained value will be used to update the `Ref`.
       * If `f` returns a `Left[E]`, this will cause the return `F` to be an error.
       */
-    def modifyEither[E <: Throwable](f: A => Either[E, A]): F[Unit] =
+    def modifyEither[E <: Throwable](f: A => Either[E, A]): F[Unit] = {
+
       underlying
-        .modify(a =>
+        .modify { a =>
+          f(a) match {
+            case Left(e)     => (a, e)
+            case Right(newA) => (newA, F.unit)
+          }
+        }
+
+      val g: F[F[Unit]] = underlying
+        .modify { a =>
           f(a) match {
             case Left(e)     => (a, e.raiseError[F, Unit])
             case Right(newA) => (newA, F.unit)
-        })
-        .flatten
+          }
+        }
+
+      g.flatten
+    }
   }
 
 }
