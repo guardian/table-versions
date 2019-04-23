@@ -103,11 +103,12 @@ object VersionedDataset {
       val partitionColumnValues: List[(Partition.PartitionColumn, String)] =
         partitionSchema.columns zip row.toSeq.map(_.toString)
 
-      val columnValues: List[Partition.ColumnValue] = partitionColumnValues.map {
-        case (partitionColumn, value) => Partition.ColumnValue(partitionColumn, value)
-      }
+      val columnValues = partitionColumnValues.map(Partition.ColumnValue.tupled)
 
-      Partition(columnValues)
+      columnValues match {
+        case head :: tail => Partition(head, tail: _*)
+        case _            => throw new Exception("Empty list of partitions not valid for partitioned table")
+      }
     }
 
     partitionRows.map(rowToPartition)
