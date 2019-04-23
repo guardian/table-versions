@@ -14,6 +14,9 @@ lazy val commonSettings = Seq(
   scalacOptions ++= scala211CompilerFlags,
   scalafmtOnCompile := true,
   libraryDependencies ++= Seq(
+    "org.apache.hadoop" % "hadoop-common" % "2.9.2" % Test,
+    "org.apache.hadoop" % "hadoop-aws" % "2.9.2" % Test,
+    "io.findify" %% "s3mock" % "0.2.5" % Test,
     "org.scalatest" %% "scalatest" % "3.0.5" % Test,
     "org.scalacheck" %% "scalacheck" % "1.14.0" % Test
   ),
@@ -50,12 +53,12 @@ lazy val cli = project
 lazy val spark = project
   .in(file("spark"))
   .settings(commonSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "commons-io" % "commons-io" % "2.6",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
-      "log4j" % "log4j" % "1.2.17"
-    ) ++ sparkDependencies)
+  .settings(libraryDependencies ++= Seq(
+    "commons-io" % "commons-io" % "2.6",
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
+    "log4j" % "log4j" % "1.2.17",
+    "org.apache.hadoop" % "hadoop-aws" % "2.9.2"
+  ) ++ sparkDependencies)
   .settings(parallelExecution in Test := false)
   .settings(fork in Test := true)
   .dependsOn(core, metastore % "compile->compile;test->test")

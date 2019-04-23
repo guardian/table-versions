@@ -77,6 +77,8 @@ trait SparkHiveSuite extends BeforeAndAfterAll with BeforeAndAfterEach with Lazy
       .set("spark.driver.host", "127.0.0.1")
       .set("spark.sql.orc.impl", "native")
       .set("spark.sql.shuffle.partitions", "8") // For speeding up tests. The default is 200, see https://spark.apache.org/docs/latest/sql-programming-guide.html#other-configuration-options
+      .set("fs.versioned.impl", "org.apache.hadoop.fs.versioned.VersionedFileSystem")
+      .set("fs.versioned.impl.disable.cache", "true")
 
     jobConfig.foreach { case (key, value) => conf.set(key, value) }
 
