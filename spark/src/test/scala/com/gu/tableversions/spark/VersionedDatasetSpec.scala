@@ -227,7 +227,7 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
     override def commit(table: TableName, newVersion: TableVersions.TableUpdate): IO[TableVersions.CommitResult] =
       committedTableUpdatesRef.update(_ :+ table -> newVersion).map(_ => CommitResult.SuccessfulCommit)
 
-    override def log(table: TableName): IO[List[TableVersions.TableUpdateHeader]] = IO.pure(Nil)
+    override def updates(table: TableName): IO[List[TableVersions.TableUpdateHeader]] = IO.pure(Nil)
 
     override def setCurrentVersion(table: TableName, id: TableVersions.CommitId): IO[Unit] = IO.unit
   }

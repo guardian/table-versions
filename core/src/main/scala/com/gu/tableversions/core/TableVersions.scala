@@ -20,7 +20,7 @@ trait TableVersions[F[_]] {
   def currentVersion(table: TableName): F[TableVersion]
 
   /** Return the history of table updates, most recent first. */
-  def log(table: TableName): F[List[TableUpdateHeader]]
+  def updates(table: TableName): F[List[TableUpdateHeader]]
 
   /**
     * Update partition versions to the given versions.

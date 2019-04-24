@@ -36,10 +36,7 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
     // Derive current version of a table by folding over the history of changes
     // until either the latest or version marked as 'current' is reached.
     for {
-      allTableUpdates <- allUpdates.get
-      tableState <- allTableUpdates
-        .get(table)
-        .fold(F.raiseError[TableState](new Exception(s"Unknown table '${table.fullyQualifiedName}'")))(F.pure)
+      tableState <- tableState(table)
       matchingUpdates = tableState.updates.span(_.header.id != tableState.currentVersion)
       updatesForCurrentVersion = matchingUpdates._1 ++ matchingUpdates._2.take(1)
       operations = updatesForCurrentVersion.flatMap(_.operations)
@@ -49,10 +46,8 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
       else
         InMemoryTableVersions.applyPartitionUpdates(PartitionedTableVersion(Map.empty))(operations)
 
-  private def isSnapshotTable(operations: List[TableOperation]) = operations match {
-    case InitTable(_, isSnapshot) :: _ => isSnapshot
-    case _                             => throw new IllegalArgumentException("First operation should be InitTable")
-  }
+  override def updates(table: TableName): F[List[TableUpdateHeader]] =
+    tableState(table).map(_.updates.map(_.header).reverse)
 
   override def commit(table: TableName, update: TableVersions.TableUpdate): F[TableVersions.CommitResult] = {
     val applyUpdate: TableUpdates => Either[Exception, TableUpdates] = { currentTableUpdates =>
@@ -67,14 +62,6 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
 
     allUpdates.modifyEither(applyUpdate).as(SuccessfulCommit)
   }
-
-  override def log(table: TableName): F[List[TableUpdateHeader]] =
-    for {
-      allTableUpdates <- allUpdates.get
-      tableState <- allTableUpdates
-        .get(table)
-        .fold(F.raiseError[TableState](new Exception(s"Unknown table '${table.fullyQualifiedName}'")))(F.pure)
-    } yield tableState.updates.map(_.header).reverse
 
   override def setCurrentVersion(table: TableName, id: CommitId): F[Unit] = {
     val applyUpdate: TableUpdates => Either[Exception, TableUpdates] = { currentTableUpdates =>
@@ -94,11 +81,25 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
     allUpdates.modifyEither(applyUpdate).void
   }
 
+  private def tableState(table: TableName): F[TableState] =
+    for {
+      allTableUpdates <- allUpdates.get
+      tableState <- allTableUpdates
+        .get(table)
+        .fold(F.raiseError[TableState](new Exception(s"Unknown table '${table.fullyQualifiedName}'")))(F.pure)
+    } yield tableState
+
+  private def isSnapshotTable(operations: List[TableOperation]) = operations match {
+    case InitTable(_, isSnapshot) :: _ => isSnapshot
+    case _                             => throw new IllegalArgumentException("First operation should be initialising the table")
+  }
+
 }
 
 object InMemoryTableVersions {
 
   case class TableState(currentVersion: CommitId, updates: List[TableUpdate])
+
   type TableUpdates = Map[TableName, TableState]
 
   /**

@@ -222,7 +222,7 @@ trait TableVersionsSpec {
         tableVersions <- emptyTableVersions
         _ <- tableVersions.init(table, isSnapshot = false, userId, UpdateMessage("init"), timestamp(0))
 
-        historyAfterInit <- tableVersions.log(table)
+        historyAfterInit <- tableVersions.updates(table)
 
         _ <- tableVersions.commit(table, tableUpdate1)
         _ <- tableVersions.commit(table, tableUpdate2)
@@ -231,7 +231,7 @@ trait TableVersionsSpec {
         versionAfterWrites <- tableVersions.currentVersion(table)
 
         // Get the update history after updates
-        fullHistory <- tableVersions.log(table)
+        fullHistory <- tableVersions.updates(table)
 
         // Setting the current version to the latest should have no effect
         _ <- tableVersions.setCurrentVersion(table, fullHistory.head.id)
@@ -310,7 +310,7 @@ trait TableVersionsSpec {
         tableVersions <- emptyTableVersions
         _ <- tableVersions.init(table, isSnapshot = true, userId, UpdateMessage("init"), Instant.now())
 
-        historyAfterInit <- tableVersions.log(table)
+        historyAfterInit <- tableVersions.updates(table)
 
         _ <- tableVersions.commit(table, tableUpdate1)
         _ <- tableVersions.commit(table, tableUpdate2)
@@ -319,7 +319,7 @@ trait TableVersionsSpec {
         versionAfterWrites <- tableVersions.currentVersion(table)
 
         // Get the update history after updates
-        fullHistory <- tableVersions.log(table)
+        fullHistory <- tableVersions.updates(table)
 
         // Setting the current version to the latest should have no effect
         _ <- tableVersions.setCurrentVersion(table, fullHistory.head.id)
@@ -407,7 +407,7 @@ trait TableVersionsSpec {
     it should "return an error if trying to get the version history for an unknown table" in {
       val scenario = for {
         tableVersions <- emptyTableVersions
-        _ <- tableVersions.log(table)
+        _ <- tableVersions.updates(table)
       } yield ()
 
       val ex = the[Exception] thrownBy scenario.unsafeRunSync()

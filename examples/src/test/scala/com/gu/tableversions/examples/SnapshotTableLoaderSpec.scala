@@ -74,7 +74,7 @@ class SnapshotTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite
     updatedVersionDirs should contain allElementsOf initialTableVersionDirs
 
     // Get version history
-    val versionHistory = tableVersions.log(table.name).unsafeRunSync()
+    val versionHistory = tableVersions.updates(table.name).unsafeRunSync()
     versionHistory.size shouldBe 3 // One initial version plus two written versions
 
     // Roll back to previous version

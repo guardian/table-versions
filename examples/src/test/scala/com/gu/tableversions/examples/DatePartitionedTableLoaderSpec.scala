@@ -46,7 +46,7 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
 
     val userId = UserId("test user")
     loader.initTable(userId, UpdateMessage("init"))
-    tableVersions.log(table.name).unsafeRunSync() should have size 1
+    tableVersions.updates(table.name).unsafeRunSync() should have size 1
 
     val pageviewsDay1 = List(
       Pageview("user-1", "news/politics", Timestamp.valueOf("2019-03-13 00:20:00")),
@@ -59,7 +59,7 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
 
     loader.data().collect() should contain theSameElementsAs pageviewsDay1
 
-    tableVersions.log(table.name).unsafeRunSync() should have size 2
+    tableVersions.updates(table.name).unsafeRunSync() should have size 2
 
     val pageviewsDay2 = List(
       Pageview("user-2", "news/politics", Timestamp.valueOf("2019-03-14 13:00:00")),
@@ -69,7 +69,7 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
 
     loader.insert(pageviewsDay2.toDS(), userId, "Day 2 initial commit")
     loader.data().collect() should contain theSameElementsAs pageviewsDay1 ++ pageviewsDay2
-    tableVersions.log(table.name).unsafeRunSync() should have size 3
+    tableVersions.updates(table.name).unsafeRunSync() should have size 3
 
     val pageviewsDay3 = List(
       Pageview("user-1", "news/politics", Timestamp.valueOf("2019-03-15 00:20:00")),
@@ -79,7 +79,7 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
 
     loader.insert(pageviewsDay3.toDS(), userId, "Day 3 initial commit")
     loader.data().collect() should contain theSameElementsAs pageviewsDay1 ++ pageviewsDay2 ++ pageviewsDay3
-    tableVersions.log(table.name).unsafeRunSync() should have size 4
+    tableVersions.updates(table.name).unsafeRunSync() should have size 4
 
     // Check that data was written to the right partitions
     loader
@@ -120,7 +120,7 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
     versionDirs(tableUri, "date=2019-03-15") should contain theSameElementsAs versionDirsFor15th
 
     // Roll back to a previous version and check see the data of the old version
-    val versionHistory = tableVersions.log(table.name).unsafeRunSync()
+    val versionHistory = tableVersions.updates(table.name).unsafeRunSync()
     val previousVersion = versionHistory.drop(1).head
     loader.checkout(previousVersion.id)
     loader.data().collect() should contain theSameElementsAs pageviewsDay1 ++ pageviewsDay2 ++ pageviewsDay3
