@@ -59,9 +59,17 @@ class SnapshotTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite
     updatedVersionDirs should have size 2
     updatedVersionDirs should contain allElementsOf initialTableVersionDirs
 
-    // Check that the previous version's data is still there and valid (not testing rollback APIs yet)
-    val oldVersion = spark.read.parquet(tableUri + s"/${initialTableVersionDirs.head}").as[User].collect()
-    oldVersion should contain theSameElementsAs day1TableData
+    // Get version history
+    val versionHistory = tableVersions.log(table.name).unsafeRunSync()
+    versionHistory.size shouldBe 3 // One initial version plus two written versions
+
+    // Roll back to previous version
+    loader.checkout(versionHistory.drop(1).head.id)
+    loader.users().collect() should contain theSameElementsAs identitiesDay1
+
+    // Roll forward to latest
+    loader.checkout(versionHistory.head.id)
+    loader.users().collect() should contain theSameElementsAs identitiesDay2
   }
 
   def versionDirs(tableLocation: URI): List[String] = {

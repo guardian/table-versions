@@ -56,6 +56,18 @@ class MultiPartitionTableLoader(table: TableDefinition)(
   def adImpressions(): Dataset[AdImpression] =
     spark.table(table.name.fullyQualifiedName).as[AdImpression]
 
+  def checkout(id: TableVersions.CommitId): Unit = {
+    val checkout = for {
+      _ <- tableVersions.setCurrentVersion(table.name, id)
+      newVersion <- tableVersions.currentVersion(table.name)
+      currentMetastoreVersion <- metastore.currentVersion(table.name)
+      changes = metastore.computeChanges(currentMetastoreVersion, newVersion)
+      _ <- metastore.update(table.name, changes)
+    } yield ()
+
+    checkout.unsafeRunSync()
+  }
+
 }
 
 object MultiPartitionTableLoader {

@@ -11,8 +11,6 @@ import com.gu.tableversions.spark.VersionedDataset
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.{Dataset, SparkSession}
 
-import scala.collection.script.Update
-
 /**
   * This is an example of loading data into a 'snapshot' table, that is, a table where we replace all the content
   * every time we write to it (no partial updates).
@@ -53,6 +51,18 @@ class SnapshotTableLoader(table: TableDefinition)(
 
     logger.info(s"Updated table $table, new version details:\n$latestVersion")
     logger.info(s"Applied the the following changes to sync the Metastore:\n$metastoreChanges")
+  }
+
+  def checkout(id: TableVersions.CommitId): Unit = {
+    val checkout = for {
+      _ <- tableVersions.setCurrentVersion(table.name, id)
+      newVersion <- tableVersions.currentVersion(table.name)
+      currentMetastoreVersion <- metastore.currentVersion(table.name)
+      changes = metastore.computeChanges(currentMetastoreVersion, newVersion)
+      _ <- metastore.update(table.name, changes)
+    } yield ()
+
+    checkout.unsafeRunSync()
   }
 
 }

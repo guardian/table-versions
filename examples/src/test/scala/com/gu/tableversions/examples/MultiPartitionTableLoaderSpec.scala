@@ -81,6 +81,18 @@ class MultiPartitionTableLoaderSpec extends FlatSpec with Matchers with SparkHiv
     updatedPartitionVersionsDay("impression_date=2019-03-15" -> "processed_date=2019-03-15") should have size 2
     updatedPartitionVersionsDay("impression_date=2019-03-14" -> "processed_date=2019-03-15") should contain allElementsOf partitionVersionsDay2(
       "impression_date=2019-03-14" -> "processed_date=2019-03-15")
+
+    // Get version history
+    val versionHistory = tableVersions.log(table.name).unsafeRunSync()
+    versionHistory.size shouldBe 4 // One initial version plus three written versions
+
+    // Roll back to previous version
+    loader.checkout(versionHistory.drop(1).head.id)
+    loader.adImpressions().collect() should contain theSameElementsAs impressionsDay1 ++ impressionsDay2
+
+    // Roll forward to latest
+    loader.checkout(versionHistory.head.id)
+    loader.adImpressions().collect() should contain theSameElementsAs impressionsDay1 ++ impressionsDay2Updated
   }
 
   def partitionVersions(tableLocation: Path): Map[(String, String), List[String]] = {
