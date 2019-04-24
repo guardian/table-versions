@@ -4,47 +4,38 @@ import java.time.Instant
 
 import cats.effect.IO
 import com.gu.tableversions.core.TableVersions.{UpdateMessage, UserId}
-import com.gu.tableversions.core._
-import com.gu.tableversions.examples.SnapshotTableLoader.User
+import com.gu.tableversions.core.{TableDefinition, TableVersions, Version}
 import com.gu.tableversions.metastore.Metastore
 import com.gu.tableversions.spark.VersionedDataset
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.{Dataset, SparkSession}
 
+import scala.reflect.runtime.universe.TypeTag
+
 /**
-  * This is an example of loading data into a 'snapshot' table, that is, a table where we replace all the content
-  * every time we write to it (no partial updates).
+  * Example code for loading data into versioned tables and updating the versions of such tables.
   */
-class SnapshotTableLoader(table: TableDefinition)(
+class TableLoader[T <: Product: TypeTag](table: TableDefinition, createTableDdl: String, isSnapshot: Boolean)(
     implicit tableVersions: TableVersions[IO],
     metastore: Metastore[IO],
-    generateVersion: IO[Version],
     spark: SparkSession)
     extends LazyLogging {
 
   import spark.implicits._
 
   def initTable(userId: UserId, message: UpdateMessage): Unit = {
-    // Create table schema in metastore
-    val ddl = s"""CREATE EXTERNAL TABLE IF NOT EXISTS ${table.name.fullyQualifiedName} (
-                 |  `id` string,
-                 |  `name` string,
-                 |  `email` string
-                 |)
-                 |STORED AS parquet
-                 |LOCATION '${table.location}'
-    """.stripMargin
-
-    spark.sql(ddl)
+    // Create table in underlying metastore
+    spark.sql(createTableDdl)
 
     // Initialise version tracking for table
-    tableVersions.init(table.name, isSnapshot = true, userId, message, Instant.now()).unsafeRunSync()
+    tableVersions.init(table.name, isSnapshot, userId, message, Instant.now()).unsafeRunSync()
   }
 
-  def users(): Dataset[User] =
-    spark.table(table.name.fullyQualifiedName).as[User]
+  def data(): Dataset[T] =
+    spark.table(table.name.fullyQualifiedName).as[T]
 
-  def insert(dataset: Dataset[User], userId: UserId, message: String): Unit = {
+  def insert(dataset: Dataset[T], userId: UserId, message: String): Unit = {
+    import Version._
     import VersionedDataset._
 
     val (latestVersion, metastoreChanges) = dataset.versionedInsertInto(table, userId, message)
@@ -64,11 +55,5 @@ class SnapshotTableLoader(table: TableDefinition)(
 
     checkout.unsafeRunSync()
   }
-
-}
-
-object SnapshotTableLoader {
-
-  case class User(id: String, name: String, email: String)
 
 }
