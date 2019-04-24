@@ -129,9 +129,9 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
     tableUpdates should have size 1
     val (tableName, tableUpdate) = tableUpdates.head
     tableName shouldBe usersTable.name
-    tableUpdate.message shouldBe UpdateMessage("Test insert users into table")
-    timestampBeforeWriting.isAfter(tableUpdate.timestamp) shouldBe false
-    tableUpdate.userId shouldBe userId
+    tableUpdate.header.message shouldBe UpdateMessage("Test insert users into table")
+    timestampBeforeWriting.isAfter(tableUpdate.header.timestamp) shouldBe false
+    tableUpdate.header.userId shouldBe userId
   }
 
   "Inserting a partitioned dataset" should "write the data to the versioned partitions and commit the new versions" in {
@@ -195,9 +195,9 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
     tableUpdates should have size 1
     val (tableName, tableUpdate) = tableUpdates.head
     tableName shouldBe eventsTable.name
-    tableUpdate.message shouldBe UpdateMessage("Test insert events into table")
-    timestampBeforeWriting.isAfter(tableUpdate.timestamp) shouldBe false
-    tableUpdate.userId shouldBe userId
+    tableUpdate.header.message shouldBe UpdateMessage("Test insert events into table")
+    timestampBeforeWriting.isAfter(tableUpdate.header.timestamp) shouldBe false
+    tableUpdate.header.userId shouldBe userId
   }
 
   private def readDataset[T <: Product: TypeTag](path: URI): Dataset[T] =
@@ -226,6 +226,10 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
     override def commit(table: TableName, newVersion: TableVersions.TableUpdate): IO[TableVersions.CommitResult] =
       committedTableUpdatesRef.update(_ :+ table -> newVersion).map(_ => CommitResult.SuccessfulCommit)
+
+    override def log(table: TableName): IO[List[TableVersions.TableUpdateHeader]] = IO.pure(Nil)
+
+    override def setCurrentVersion(table: TableName, id: TableVersions.CommitId): IO[Unit] = IO.unit
   }
 
   class StubMetastore(currentVersion: TableVersion, computedChanges: TableChanges) extends Metastore[IO] {

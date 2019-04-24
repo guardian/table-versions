@@ -10,8 +10,6 @@ class InMemoryTableVersionsSpec extends FlatSpec with Matchers with TableVersion
   val date = PartitionColumn("date")
   val emptyPartitionedTable = PartitionedTableVersion(Map.empty)
 
-  val version3 = Version.generateVersion.unsafeRunSync()
-
   "The reference implementation for the TableVersions service" should behave like tableVersionsBehaviour {
     InMemoryTableVersions[IO]
   }

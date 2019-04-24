@@ -16,14 +16,17 @@ import org.scalatest.{FlatSpec, Matchers}
   */
 trait TableVersionsSpec {
   this: FlatSpec with Matchers =>
+
   val version1 = Version.generateVersion.unsafeRunSync()
   val version2 = Version.generateVersion.unsafeRunSync()
+  val version3 = Version.generateVersion.unsafeRunSync()
 
   def tableVersionsBehaviour(emptyTableVersions: IO[TableVersions[IO]]): Unit = {
 
     val table = TableName("schema", "table")
     val userId = UserId("Test user")
     val date = PartitionColumn("date")
+
     it should "have an idempotent 'init' operation" in {
 
       val scenario = for {
@@ -167,6 +170,7 @@ trait TableVersionsSpec {
         tableVersions <- emptyTableVersions
         _ <- tableVersions.init(table, isSnapshot = true, userId, UpdateMessage("init"), Instant.now())
         initialTableVersion <- tableVersions.currentVersion(table)
+
         commitResult1 <- tableVersions.commit(table,
                                               TableUpdate(userId,
                                                           UpdateMessage("First commit"),
@@ -195,28 +199,232 @@ trait TableVersionsSpec {
       currentVersion2 shouldBe currentVersion2
     }
 
+    it should "allow table versions of a partitioned table to be updated from version history" in {
+
+      val partition1 = Partition(date, "2019-03-01")
+      val partition2 = Partition(date, "2019-03-02")
+
+      val tableUpdate1 = TableUpdate(userId,
+                                     UpdateMessage("Day 1 first commit"),
+                                     timestamp(1),
+                                     List(AddPartitionVersion(partition1, version1)))
+      val tableUpdate2 = TableUpdate(userId,
+                                     UpdateMessage("Day 2 first commit"),
+                                     timestamp(2),
+                                     List(AddPartitionVersion(partition2, version1)))
+
+      val tableUpdate3 = TableUpdate(userId,
+                                     UpdateMessage("Day 1 reprocessed"),
+                                     timestamp(3),
+                                     List(AddPartitionVersion(partition1, version2)))
+
+      val scenario = for {
+        tableVersions <- emptyTableVersions
+        _ <- tableVersions.init(table, isSnapshot = false, userId, UpdateMessage("init"), timestamp(0))
+
+        historyAfterInit <- tableVersions.log(table)
+
+        _ <- tableVersions.commit(table, tableUpdate1)
+        _ <- tableVersions.commit(table, tableUpdate2)
+        _ <- tableVersions.commit(table, tableUpdate3)
+
+        versionAfterWrites <- tableVersions.currentVersion(table)
+
+        // Get the update history after updates
+        fullHistory <- tableVersions.log(table)
+
+        // Setting the current version to the latest should have no effect
+        _ <- tableVersions.setCurrentVersion(table, fullHistory.head.id)
+        versionAfterWrites2 <- tableVersions.currentVersion(table)
+
+        // Set the initial version, i.e. the table as it was before any committed version
+        _ <- tableVersions.setCurrentVersion(table, fullHistory.last.id)
+        versionSetToInitial <- tableVersions.currentVersion(table)
+
+        // Set the version after the first commit
+        _ <- tableVersions.setCurrentVersion(table, fullHistory.takeRight(2).head.id)
+        versionSetToFirst <- tableVersions.currentVersion(table)
+
+        // Set the second from last version
+        _ <- tableVersions.setCurrentVersion(table, fullHistory.drop(1).head.id)
+        versionSetToSecond <- tableVersions.currentVersion(table)
+
+        // Set the latest version again
+        _ <- tableVersions.setCurrentVersion(table, fullHistory.head.id)
+        versionSetToLatest <- tableVersions.currentVersion(table)
+
+      } yield
+        (historyAfterInit,
+         fullHistory,
+         versionAfterWrites,
+         versionAfterWrites2,
+         versionSetToInitial,
+         versionSetToFirst,
+         versionSetToSecond,
+         versionSetToLatest)
+
+      val (historyAfterInit,
+           fullHistory,
+           versionAfterWrites,
+           versionAfterWrites2,
+           versionSetToInitial,
+           versionSetToFirst,
+           versionSetToSecond,
+           versionSetToLatest) = scenario.unsafeRunSync()
+
+      historyAfterInit should have size 1
+      val initUpdate = historyAfterInit.head
+      initUpdate.userId shouldBe userId
+      initUpdate.message shouldBe UpdateMessage("init")
+      initUpdate.timestamp shouldBe timestamp(0)
+
+      // Log should return updates most recent first
+      fullHistory should contain theSameElementsInOrderAs List(tableUpdate3.header,
+                                                               tableUpdate2.header,
+                                                               tableUpdate1.header,
+                                                               initUpdate)
+      // Commit IDs should be unique
+      fullHistory.map(_.id).distinct should contain theSameElementsAs fullHistory.map(_.id)
+
+      versionAfterWrites shouldBe PartitionedTableVersion(Map(partition1 -> version2, partition2 -> version1))
+      versionAfterWrites2 shouldEqual versionAfterWrites
+
+      versionSetToInitial shouldBe PartitionedTableVersion(Map.empty)
+      versionSetToFirst shouldBe PartitionedTableVersion(Map(partition1 -> version1))
+      versionSetToSecond shouldBe PartitionedTableVersion(Map(partition1 -> version1, partition2 -> version1))
+      versionSetToLatest shouldEqual versionAfterWrites
+    }
+
+    it should "allow table versions of a snapshot table to be updated from version history" in {
+
+      val tableUpdate1 =
+        TableUpdate(userId, UpdateMessage("First commit"), timestamp(1), List(AddTableVersion(version1)))
+
+      val tableUpdate2 =
+        TableUpdate(userId, UpdateMessage("Second commit"), timestamp(2), List(AddTableVersion(version2)))
+
+      val tableUpdate3 =
+        TableUpdate(userId, UpdateMessage("Third commit"), timestamp(3), List(AddTableVersion(version3)))
+
+      val scenario = for {
+        tableVersions <- emptyTableVersions
+        _ <- tableVersions.init(table, isSnapshot = true, userId, UpdateMessage("init"), Instant.now())
+
+        historyAfterInit <- tableVersions.log(table)
+
+        _ <- tableVersions.commit(table, tableUpdate1)
+        _ <- tableVersions.commit(table, tableUpdate2)
+        _ <- tableVersions.commit(table, tableUpdate3)
+
+        versionAfterWrites <- tableVersions.currentVersion(table)
+
+        // Get the update history after updates
+        fullHistory <- tableVersions.log(table)
+
+        // Setting the current version to the latest should have no effect
+        _ <- tableVersions.setCurrentVersion(table, fullHistory.head.id)
+        versionAfterWrites2 <- tableVersions.currentVersion(table)
+
+        // Set the initial version, i.e. the table as it was before any committed version
+        _ <- tableVersions.setCurrentVersion(table, fullHistory.last.id)
+        versionSetToInitial <- tableVersions.currentVersion(table)
+
+        // Set the version after the first commit
+        _ <- tableVersions.setCurrentVersion(table, fullHistory.takeRight(2).head.id)
+        versionSetToFirst <- tableVersions.currentVersion(table)
+
+        // Set the second from last version
+        _ <- tableVersions.setCurrentVersion(table, fullHistory.drop(1).head.id)
+        versionSetToSecond <- tableVersions.currentVersion(table)
+
+        // Set the latest version again
+        _ <- tableVersions.setCurrentVersion(table, fullHistory.head.id)
+        versionSetToLatest <- tableVersions.currentVersion(table)
+
+      } yield
+        (historyAfterInit,
+         fullHistory,
+         versionAfterWrites,
+         versionAfterWrites2,
+         versionSetToInitial,
+         versionSetToFirst,
+         versionSetToSecond,
+         versionSetToLatest)
+
+      val (historyAfterInit,
+           fullHistory,
+           versionAfterWrites,
+           versionAfterWrites2,
+           versionSetToInitial,
+           versionSetToFirst,
+           versionSetToSecond,
+           versionSetToLatest) = scenario.unsafeRunSync()
+
+      historyAfterInit should have size 1
+      val initUpdate = historyAfterInit.head
+
+      fullHistory should contain theSameElementsInOrderAs List(tableUpdate3.header,
+                                                               tableUpdate2.header,
+                                                               tableUpdate1.header,
+                                                               initUpdate)
+
+      // Commit IDs should be unique
+      fullHistory.map(_.id).distinct should contain theSameElementsAs fullHistory.map(_.id)
+
+      versionAfterWrites shouldBe SnapshotTableVersion(version3)
+      versionAfterWrites2 shouldEqual versionAfterWrites
+
+      versionSetToInitial shouldBe SnapshotTableVersion(Version.Unversioned)
+      versionSetToFirst shouldBe SnapshotTableVersion(version1)
+      versionSetToSecond shouldBe SnapshotTableVersion(version2)
+      versionSetToLatest shouldEqual versionAfterWrites
+    }
+
     it should "return an error if trying to get current version of an unknown table" in {
       val scenario = for {
         tableVersions <- emptyTableVersions
-        version <- tableVersions.currentVersion(table)
-      } yield version
+        _ <- tableVersions.currentVersion(table)
+      } yield ()
 
       val ex = the[Exception] thrownBy scenario.unsafeRunSync()
-      ex.getMessage should include regex "schema.*table.*not found"
+      ex.getMessage should include regex "Unknown table.*schema.*table"
     }
 
     it should "return an error if trying to commit changes for an unknown table" in {
       val scenario = for {
         tableVersions <- emptyTableVersions
 
-        version <- tableVersions.commit(
+        _ <- tableVersions.commit(
           TableName("schema", "table"),
           TableUpdate(userId, UpdateMessage("Commit initial partitions"), timestamp(1), List(AddTableVersion(version1)))
         )
-      } yield version
+      } yield ()
 
       val ex = the[Exception] thrownBy scenario.unsafeRunSync()
       ex.getMessage should include regex "Unknown table.*schema.*table"
+    }
+
+    it should "return an error if trying to get the version history for an unknown table" in {
+      val scenario = for {
+        tableVersions <- emptyTableVersions
+        _ <- tableVersions.log(table)
+      } yield ()
+
+      val ex = the[Exception] thrownBy scenario.unsafeRunSync()
+      ex.getMessage should include regex "Unknown table.*schema.*table"
+    }
+
+    it should "return an error if trying to set the version of a table to an unknown commit ID" in {
+      val scenario = for {
+        tableVersions <- emptyTableVersions
+        _ <- tableVersions.init(table, isSnapshot = true, userId, UpdateMessage("init"), Instant.now())
+
+        _ <- tableVersions.setCurrentVersion(table, CommitId("unknown-commit-id"))
+
+      } yield ()
+
+      val ex = the[Exception] thrownBy scenario.unsafeRunSync()
+      ex.getMessage should include regex "Unknown commit.*unknown-commit-id"
     }
 
   }

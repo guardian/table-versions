@@ -55,6 +55,18 @@ class DatePartitionedTableLoader(table: TableDefinition)(
     logger.info(s"Applied the the following changes to sync the Metastore:\n$metastoreChanges")
   }
 
+  def checkout(id: TableVersions.CommitId): Unit = {
+    val checkout = for {
+      _ <- tableVersions.setCurrentVersion(table.name, id)
+      newVersion <- tableVersions.currentVersion(table.name)
+      currentMetastoreVersion <- metastore.currentVersion(table.name)
+      changes = metastore.computeChanges(currentMetastoreVersion, newVersion)
+      _ <- metastore.update(table.name, changes)
+    } yield ()
+
+    checkout.unsafeRunSync()
+  }
+
 }
 
 object DatePartitionedTableLoader {

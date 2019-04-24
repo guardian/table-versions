@@ -5,7 +5,7 @@ import java.time.Instant
 import cats.effect.Sync
 import cats.effect.concurrent.Ref
 import cats.implicits._
-import com.gu.tableversions.core.InMemoryTableVersions.TableUpdates
+import com.gu.tableversions.core.InMemoryTableVersions.{TableState, TableUpdates}
 import com.gu.tableversions.core.TableVersions.CommitResult.SuccessfulCommit
 import com.gu.tableversions.core.TableVersions.TableOperation._
 import com.gu.tableversions.core.TableVersions._
@@ -25,43 +25,41 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
       timestamp: Instant): F[Unit] =
     allUpdates.update { prev =>
       if (prev.contains(table)) prev
-      else
-        prev + (table -> List(
-          TableUpdate(
-            userId,
-            message,
-            timestamp = timestamp,
-            operations = List(InitTable(table, isSnapshot))
-          )))
+      else {
+        val initialUpdate = TableUpdate(userId, message, timestamp, operations = List(InitTable(table, isSnapshot)))
+        val initialTableState = TableState(currentVersion = initialUpdate.header.id, updates = List(initialUpdate))
+        prev + (table -> initialTableState)
+      }
     }
 
   override def currentVersion(table: TableName): F[TableVersion] =
     // Derive current version of a table by folding over the history of changes
+    // until either the latest or version marked as 'current' is reached.
     for {
       allTableUpdates <- allUpdates.get
-      tableUpdates <- allTableUpdates
+      tableState <- allTableUpdates
         .get(table)
-        .fold(F.raiseError[List[TableUpdate]](new Exception(s"Table '$table' not found")))(F.pure)
-      operations = tableUpdates.flatMap(_.operations)
+        .fold(F.raiseError[TableState](new Exception(s"Unknown table '${table.fullyQualifiedName}'")))(F.pure)
+      matchingUpdates = tableState.updates.span(_.header.id != tableState.currentVersion)
+      updatesForCurrentVersion = matchingUpdates._1 ++ matchingUpdates._2.take(1)
+      operations = updatesForCurrentVersion.flatMap(_.operations)
     } yield
-      if (isSnapShot(operations))
+      if (isSnapshotTable(operations))
         InMemoryTableVersions.latestSnapshotTableVersion(operations)
       else
         InMemoryTableVersions.applyPartitionUpdates(PartitionedTableVersion(Map.empty))(operations)
 
-  private def isSnapShot(operations: List[TableOperation]) = operations match {
+  private def isSnapshotTable(operations: List[TableOperation]) = operations match {
     case InitTable(_, isSnapshot) :: _ => isSnapshot
     case _                             => throw new IllegalArgumentException("First operation should be InitTable")
   }
 
   override def commit(table: TableName, update: TableVersions.TableUpdate): F[TableVersions.CommitResult] = {
-
-    // Note: we're not checking invalid partition versions here as we suspect this problem will go
-    // away in a later iteration of this interface.
-
     val applyUpdate: TableUpdates => Either[Exception, TableUpdates] = { currentTableUpdates =>
       if (currentTableUpdates.contains(table)) {
-        val updated = currentTableUpdates + (table -> (currentTableUpdates(table) :+ update))
+        val updated = currentTableUpdates + (table -> TableState(
+          currentVersion = update.header.id,
+          updates = currentTableUpdates(table).updates :+ update))
         Right(updated)
       } else
         Left(new Exception(s"Unknown table '${table.fullyQualifiedName}'"))
@@ -70,17 +68,44 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
     allUpdates.modifyEither(applyUpdate).as(SuccessfulCommit)
   }
 
+  override def log(table: TableName): F[List[TableUpdateHeader]] =
+    for {
+      allTableUpdates <- allUpdates.get
+      tableState <- allTableUpdates
+        .get(table)
+        .fold(F.raiseError[TableState](new Exception(s"Unknown table '${table.fullyQualifiedName}'")))(F.pure)
+    } yield tableState.updates.map(_.header).reverse
+
+  override def setCurrentVersion(table: TableName, id: CommitId): F[Unit] = {
+    val applyUpdate: TableUpdates => Either[Exception, TableUpdates] = { currentTableUpdates =>
+      currentTableUpdates.get(table) match {
+        case Some(currentTableState) =>
+          if (currentTableState.updates.exists(_.header.id == id)) {
+            val newTableState = currentTableState.copy(currentVersion = id)
+            val updated = currentTableUpdates + (table -> newTableState)
+            Right(updated)
+          } else
+            Left(new Exception(s"Unknown commit ID '$id'"))
+
+        case None => Left(new Exception(s"Unknown table '${table.fullyQualifiedName}'"))
+      }
+    }
+
+    allUpdates.modifyEither(applyUpdate).void
+  }
+
 }
 
 object InMemoryTableVersions {
 
-  type TableUpdates = Map[TableName, List[TableUpdate]]
+  case class TableState(currentVersion: CommitId, updates: List[TableUpdate])
+  type TableUpdates = Map[TableName, TableState]
 
   /**
     * Safe constructor
     */
   def apply[F[_]](implicit F: Sync[F]): F[InMemoryTableVersions[F]] =
-    Ref[F].of(Map[TableName, List[TableUpdate]]()).map(new InMemoryTableVersions[F](_))
+    Ref[F].of(Map.empty[TableName, TableState]).map(new InMemoryTableVersions[F](_))
 
   private[core] def latestSnapshotTableVersion(operations: List[TableOperation]): SnapshotTableVersion = {
     val versions = operations.collect {

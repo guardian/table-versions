@@ -6,7 +6,7 @@ import java.sql.Timestamp
 
 import cats.effect.IO
 import com.gu.tableversions.core.Partition.PartitionColumn
-import com.gu.tableversions.core.TableVersions.{UpdateMessage, UserId}
+import com.gu.tableversions.core.TableVersions._
 import com.gu.tableversions.core._
 import com.gu.tableversions.spark.{SparkHiveMetastore, SparkHiveSuite}
 import org.scalatest.{FlatSpec, Matchers}
@@ -32,6 +32,7 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
 
     val userId = UserId("test user")
     loader.initTable(userId, UpdateMessage("init"))
+    tableVersions.log(table.name).unsafeRunSync() should have size 1
 
     val pageviewsDay1 = List(
       Pageview("user-1", "news/politics", Timestamp.valueOf("2019-03-13 00:20:00")),
@@ -44,6 +45,8 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
 
     loader.pageviews().collect() should contain theSameElementsAs pageviewsDay1
 
+    tableVersions.log(table.name).unsafeRunSync() should have size 2
+
     val pageviewsDay2 = List(
       Pageview("user-2", "news/politics", Timestamp.valueOf("2019-03-14 13:00:00")),
       Pageview("user-3", "sport/handball", Timestamp.valueOf("2019-03-14 21:00:00")),
@@ -52,6 +55,7 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
 
     loader.insert(pageviewsDay2.toDS(), userId, "Day 2 initial commit")
     loader.pageviews().collect() should contain theSameElementsAs pageviewsDay1 ++ pageviewsDay2
+    tableVersions.log(table.name).unsafeRunSync() should have size 3
 
     val pageviewsDay3 = List(
       Pageview("user-1", "news/politics", Timestamp.valueOf("2019-03-15 00:20:00")),
@@ -60,8 +64,8 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
     )
 
     loader.insert(pageviewsDay3.toDS(), userId, "Day 3 initial commit")
-
     loader.pageviews().collect() should contain theSameElementsAs pageviewsDay1 ++ pageviewsDay2 ++ pageviewsDay3
+    tableVersions.log(table.name).unsafeRunSync() should have size 4
 
     // Check that data was written to the right partitions
     loader
@@ -101,16 +105,30 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
     updatedVersionDirsFor14th should contain allElementsOf versionDirsFor14th
     versionDirs(tableUri, "date=2019-03-15") should contain theSameElementsAs versionDirsFor15th
 
-    // TODO: Query Metastore directly to check what partitions the table has?
-    //   (When implementing rollback and creating views on historical versions we could just test that functionality
-    //    instead of querying storage directly)
-    //   Also: query version history for table
+    // Roll back to a previous version and check see the data of the old version
+    val versionHistory = tableVersions.log(table.name).unsafeRunSync()
+    val previousVersion = versionHistory.drop(1).head
+    loader.checkout(previousVersion.id)
+    loader.pageviews().collect() should contain theSameElementsAs pageviewsDay1 ++ pageviewsDay2 ++ pageviewsDay3
 
-    // Check that we still have the previous version of the updated partition
-    spark.read
-      .parquet(tableUri.toString + s"/date=2019-03-14/${versionDirsFor14th.head}")
-      .as[Pageview]
-      .collect() should contain theSameElementsAs pageviewsDay2
+    // Roll back to an even earlier version
+    loader.checkout(versionHistory.takeRight(2).head.id)
+    loader.pageviews().collect() should contain theSameElementsAs pageviewsDay1
+
+    // Roll back to the table as it looked after init, before any partitions were added.
+    loader.checkout(versionHistory.last.id)
+    loader.pageviews().collect() shouldBe empty
+
+    // Write some new data to the table
+    // Check that we're on the very latest version after this, checking it automatically moves to the head version.
+    val pageviewsDay4 = List(
+      Pageview("user-99", "news/technology/surveillance", Timestamp.valueOf("2019-03-16 10:20:30"))
+    )
+    loader.insert(pageviewsDay4.toDS(), userId, "Day 4 initial commit")
+
+    loader
+      .pageviews()
+      .collect() should contain theSameElementsAs pageviewsDay1 ++ updatedPageviewsDay2 ++ pageviewsDay3 ++ pageviewsDay4
   }
 
   def versionDirs(tableLocation: URI, partition: String): List[String] = {
