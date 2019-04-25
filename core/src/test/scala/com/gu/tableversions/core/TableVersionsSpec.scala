@@ -407,6 +407,17 @@ trait TableVersionsSpec {
       ex.getMessage should include regex "Unknown table.*schema.*table"
     }
 
+    it should "return an error if trying to set the version of an unknown table" in {
+      val scenario = for {
+        tableVersions <- emptyTableVersions
+        _ <- tableVersions.setCurrentVersion(table, CommitId("unknown-commit-id"))
+
+      } yield ()
+
+      val ex = the[Exception] thrownBy scenario.unsafeRunSync()
+      ex.getMessage should include regex "Unknown table.*schema.*table"
+    }
+
     it should "return an error if trying to set the version of a table to an unknown commit ID" in {
       val scenario = for {
         tableVersions <- emptyTableVersions
