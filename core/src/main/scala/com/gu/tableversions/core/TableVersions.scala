@@ -47,7 +47,7 @@ trait TableVersions[F[_]] {
   /**
     * Update partition versions to the given versions.
     */
-  def commit(table: TableName, update: TableVersions.TableUpdate): F[CommitResult]
+  def commit(table: TableName, update: TableVersions.TableUpdate): F[Unit]
 
   /**
     * Set the current version of a table to refer to an existing version.
@@ -104,14 +104,6 @@ object TableVersions {
         timestamp: Instant,
         operations: List[TableOperation]): TableUpdate =
       TableUpdate(TableUpdateHeader(userId, message, timestamp), operations)
-  }
-
-  /** Result type for commit operation */
-  sealed trait CommitResult
-
-  object CommitResult {
-    case object SuccessfulCommit extends CommitResult
-    final case class InvalidCommit(invalidPartitions: Map[Partition, ErrorMessage]) extends CommitResult
   }
 
   case class ErrorMessage(value: String) extends AnyVal

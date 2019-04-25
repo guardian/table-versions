@@ -4,7 +4,6 @@ import cats.effect.Sync
 import cats.effect.concurrent.Ref
 import cats.implicits._
 import com.gu.tableversions.core.InMemoryTableVersions._
-import com.gu.tableversions.core.TableVersions.CommitResult.SuccessfulCommit
 import com.gu.tableversions.core.TableVersions._
 import com.gu.tableversions.core.util.RichRef._
 
@@ -14,7 +13,7 @@ import com.gu.tableversions.core.util.RichRef._
 class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(implicit F: Sync[F])
     extends TableVersions[F] {
 
-  override def commit(table: TableName, update: TableVersions.TableUpdate): F[TableVersions.CommitResult] = {
+  override def commit(table: TableName, update: TableVersions.TableUpdate): F[Unit] = {
     val applyUpdate: TableUpdates => Either[Exception, TableUpdates] = { currentTableUpdates =>
       if (currentTableUpdates.contains(table)) {
         val updated = currentTableUpdates + (table -> TableState(
@@ -25,7 +24,7 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
         Left(unknownTableError(table))
     }
 
-    allUpdates.modifyEither(applyUpdate).as(SuccessfulCommit)
+    allUpdates.modifyEither(applyUpdate).void
   }
 
   override def setCurrentVersion(table: TableName, id: CommitId): F[Unit] = {

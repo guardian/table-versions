@@ -4,7 +4,6 @@ import java.time.Instant
 
 import cats.effect.IO
 import com.gu.tableversions.core.Partition.PartitionColumn
-import com.gu.tableversions.core.TableVersions.CommitResult.SuccessfulCommit
 import com.gu.tableversions.core.TableVersions.TableOperation.{AddPartitionVersion, AddTableVersion, RemovePartition}
 import com.gu.tableversions.core.TableVersions._
 import org.scalatest.{FlatSpec, Matchers}
@@ -68,7 +67,7 @@ trait TableVersionsSpec {
         initialTableVersion <- tableVersions.currentVersion(table)
 
         // Add some partitions
-        commitResult1 <- tableVersions.commit(
+        _ <- tableVersions.commit(
           table,
           TableUpdate(userId,
                       UpdateMessage("Add initial partitions"),
@@ -79,23 +78,21 @@ trait TableVersionsSpec {
         tableVersion1 <- tableVersions.currentVersion(table)
 
         // Do an update with one updated partition and one new one
-        commitResult2 <- tableVersions.commit(table,
-                                              TableUpdate(userId,
-                                                          UpdateMessage("First update"),
-                                                          timestamp(2),
-                                                          partitionUpdate1.map(AddPartitionVersion.tupled).toList))
+        _ <- tableVersions.commit(table,
+                                  TableUpdate(userId,
+                                              UpdateMessage("First update"),
+                                              timestamp(2),
+                                              partitionUpdate1.map(AddPartitionVersion.tupled).toList))
         tableVersion2 <- tableVersions.currentVersion(table)
 
-      } yield (initialTableVersion, commitResult1, tableVersion1, commitResult2, tableVersion2)
+      } yield (initialTableVersion, tableVersion1, tableVersion2)
 
-      val (initialTableVersion, commitResult1, tableVersion1, commitResult2, tableVersion2) =
+      val (initialTableVersion, tableVersion1, tableVersion2) =
         scenario.unsafeRunSync()
 
       initialTableVersion shouldBe PartitionedTableVersion(Map.empty)
-      commitResult1 shouldBe SuccessfulCommit
       tableVersion1 shouldBe PartitionedTableVersion(initialPartitionVersions)
 
-      commitResult2 shouldBe SuccessfulCommit
       tableVersion2 shouldEqual PartitionedTableVersion(
         Map(
           Partition(date, "2019-03-01") -> version1,
@@ -191,11 +188,7 @@ trait TableVersionsSpec {
         scenario.unsafeRunSync()
 
       initialTableVersion shouldBe SnapshotTableVersion(Version.Unversioned)
-
-      commitResult1 shouldBe SuccessfulCommit
       currentVersion1 shouldBe tableVersion1
-
-      commitResult2 shouldBe SuccessfulCommit
       currentVersion2 shouldBe currentVersion2
     }
 
