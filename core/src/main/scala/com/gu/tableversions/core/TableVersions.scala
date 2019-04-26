@@ -20,7 +20,7 @@ trait TableVersions[F[_]] {
   def init(table: TableName, isSnapshot: Boolean, userId: UserId, message: UpdateMessage, timestamp: Instant): F[Unit] =
     handleInit(table) {
       val initialUpdate = TableUpdate(userId, message, timestamp, operations = List(InitTable(table, isSnapshot)))
-      TableState(currentVersion = initialUpdate.header.id, updates = List(initialUpdate))
+      TableState(currentVersion = initialUpdate.metadata.id, updates = List(initialUpdate))
     }
 
   /**
@@ -31,7 +31,7 @@ trait TableVersions[F[_]] {
     // until either the latest or version marked as 'current' is reached.
     for {
       ts <- tableState(table)
-      matchingUpdates = ts.updates.span(_.header.id != ts.currentVersion)
+      matchingUpdates = ts.updates.span(_.metadata.id != ts.currentVersion)
       updatesForCurrentVersion = matchingUpdates._1 ++ matchingUpdates._2.take(1)
       operations = updatesForCurrentVersion.flatMap(_.operations)
     } yield
@@ -41,8 +41,8 @@ trait TableVersions[F[_]] {
         applyPartitionUpdates(PartitionedTableVersion(Map.empty))(operations)
 
   /** Return the history of table updates, most recent first. */
-  def updates(table: TableName)(implicit F: Sync[F]): F[List[TableUpdateHeader]] =
-    tableState(table).map(_.updates.map(_.header).reverse)
+  def updates(table: TableName)(implicit F: Sync[F]): F[List[TableUpdateMetadata]] =
+    tableState(table).map(_.updates.map(_.metadata).reverse)
 
   /**
     * Update partition versions to the given versions.
@@ -72,17 +72,17 @@ trait TableVersions[F[_]] {
 
 object TableVersions {
 
-  final case class TableUpdateHeader(
+  final case class TableUpdateMetadata(
       id: CommitId,
       userId: UserId,
       message: UpdateMessage,
       timestamp: Instant
   )
 
-  object TableUpdateHeader {
+  object TableUpdateMetadata {
 
-    def apply(userId: UserId, message: UpdateMessage, timestamp: Instant): TableUpdateHeader =
-      TableUpdateHeader(createId(), userId, message, timestamp)
+    def apply(userId: UserId, message: UpdateMessage, timestamp: Instant): TableUpdateMetadata =
+      TableUpdateMetadata(createId(), userId, message, timestamp)
 
     private def createId(): CommitId = CommitId(UUID.randomUUID().toString)
   }
@@ -94,7 +94,7 @@ object TableVersions {
   final case class UpdateMessage(content: String) extends AnyVal
 
   /** A collection of updates to partitions to be applied and tracked as a single atomic change. */
-  final case class TableUpdate(header: TableUpdateHeader, operations: List[TableOperation])
+  final case class TableUpdate(metadata: TableUpdateMetadata, operations: List[TableOperation])
 
   object TableUpdate {
 
@@ -103,7 +103,7 @@ object TableVersions {
         message: UpdateMessage,
         timestamp: Instant,
         operations: List[TableOperation]): TableUpdate =
-      TableUpdate(TableUpdateHeader(userId, message, timestamp), operations)
+      TableUpdate(TableUpdateMetadata(userId, message, timestamp), operations)
   }
 
   final case class ErrorMessage(value: String) extends AnyVal

@@ -18,7 +18,7 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
       currentTableUpdates.get(table).fold[Either[Exception, TableUpdates]](Left(unknownTableError(table))) {
         currentTableState =>
           val newTableState =
-            TableState(currentVersion = update.header.id, updates = currentTableState.updates :+ update)
+            TableState(currentVersion = update.metadata.id, updates = currentTableState.updates :+ update)
           val updatedStates = currentTableUpdates + (table -> newTableState)
           Right(updatedStates)
       }
@@ -31,7 +31,7 @@ class InMemoryTableVersions[F[_]] private (allUpdates: Ref[F, TableUpdates])(imp
     val applyUpdate: TableUpdates => Either[Exception, TableUpdates] = { currentTableUpdates =>
       currentTableUpdates.get(table).fold[Either[Exception, TableUpdates]](Left(unknownTableError(table))) {
         currentTableState =>
-          if (currentTableState.updates.exists(_.header.id == id)) {
+          if (currentTableState.updates.exists(_.metadata.id == id)) {
             val newTableState = currentTableState.copy(currentVersion = id)
             val updatedStates = currentTableUpdates + (table -> newTableState)
             Right(updatedStates)

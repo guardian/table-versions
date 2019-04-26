@@ -275,9 +275,9 @@ trait TableVersionsSpec {
       initUpdate.timestamp shouldBe timestamp(0)
 
       // Log should return updates most recent first
-      fullHistory should contain theSameElementsInOrderAs List(tableUpdate3.header,
-                                                               tableUpdate2.header,
-                                                               tableUpdate1.header,
+      fullHistory should contain theSameElementsInOrderAs List(tableUpdate3.metadata,
+                                                               tableUpdate2.metadata,
+                                                               tableUpdate1.metadata,
                                                                initUpdate)
       // Commit IDs should be unique
       fullHistory.map(_.id).distinct should contain theSameElementsAs fullHistory.map(_.id)
@@ -359,9 +359,9 @@ trait TableVersionsSpec {
       historyAfterInit should have size 1
       val initUpdate = historyAfterInit.head
 
-      fullHistory should contain theSameElementsInOrderAs List(tableUpdate3.header,
-                                                               tableUpdate2.header,
-                                                               tableUpdate1.header,
+      fullHistory should contain theSameElementsInOrderAs List(tableUpdate3.metadata,
+                                                               tableUpdate2.metadata,
+                                                               tableUpdate1.metadata,
                                                                initUpdate)
 
       // Commit IDs should be unique
@@ -400,7 +400,7 @@ trait TableVersionsSpec {
       val (committedUpdates, updateHistory) = scenario.unsafeRunSync()
       val updateHistoryWithoutInitOperation = updateHistory.dropRight(1)
 
-      val expectedUpdates = committedUpdates.map(_.header.id).reverse
+      val expectedUpdates = committedUpdates.map(_.metadata.id).reverse
       updateHistoryWithoutInitOperation.map(_.id) should contain theSameElementsInOrderAs expectedUpdates
       updateHistoryWithoutInitOperation.map(_.id) should contain theSameElementsInOrderAs expectedUpdates
     }
