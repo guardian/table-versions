@@ -19,7 +19,7 @@ trait MetastoreSpec {
       emptyMetastore: IO[Metastore[IO]],
       initUnderlyingTable: IO[Unit],
       table: TableName,
-      tearDownUnderlyingTable: IO[Unit] = IO { () }): Unit = {
+      tearDownUnderlyingTable: IO[Unit] = IO.unit): Unit = {
 
     it should "allow table versions to be updated for snapshot tables" in {
       val scenario = for {
@@ -60,7 +60,7 @@ trait MetastoreSpec {
       emptyMetastore: IO[Metastore[IO]],
       initUnderlyingTable: IO[Unit],
       table: TableName,
-      tearDownUnderlyingTable: IO[Unit] = IO { () }): Unit = {
+      tearDownUnderlyingTable: IO[Unit] = IO.unit): Unit = {
 
     val dateCol = PartitionColumn("date")
 
