@@ -19,6 +19,8 @@ import com.gu.tableversions.metastore.MetastoreSpec
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import cats.implicits._
 
+import scala.util.Random
+
 class GlueMetastoreSpec extends FlatSpec with Matchers with BeforeAndAfterAll with MetastoreSpec {
 
   lazy val region = Regions.EU_WEST_1
@@ -34,12 +36,20 @@ class GlueMetastoreSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
   val schema = "temp"
   def tableLocation(tableName: String) = new URI(s"s3://ophan-temp-schema/test-data/$tableName")
 
-  val snapshotTable =
-    TableDefinition(TableName(schema, "test_snapshot"), tableLocation("test_snapshot"), PartitionSchema.snapshot)
+  val dedupSuffix = Random.alphanumeric.take(8).mkString("")
 
-  val partitionedTable = TableDefinition(TableName(schema, "test_partitioned"),
-                                         tableLocation("test_partitioned"),
-                                         PartitionSchema(List(PartitionColumn("date"))))
+  val snapshotTable = {
+    val tableName = "test_snapshot_" + dedupSuffix
+    TableDefinition(TableName(schema, tableName), tableLocation(tableName), PartitionSchema.snapshot)
+  }
+
+  val partitionedTable = {
+    val tableName = "test_partitioned_" + dedupSuffix
+
+    TableDefinition(TableName(schema, tableName),
+                    tableLocation(tableName),
+                    PartitionSchema(List(PartitionColumn("date"))))
+  }
 
   "A metastore implementation" should behave like metastoreWithSnapshotSupport(IO { new GlueMetastore(glue) },
                                                                                initTable(snapshotTable),
