@@ -127,11 +127,11 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
 
   def removePartition(table: TableName, partition: Partition): F[Unit] =
     F.delay {
-      val partitionvalues = partition.columnValues.map(_.value).toList
+      val partitionValues = partition.columnValues.map(_.value).toList
       val deletePartitionRequest = new DeletePartitionRequest()
         .withDatabaseName(table.schema)
         .withTableName(table.name)
-        .withPartitionValues(partitionvalues)
+        .withPartitionValues(partitionValues)
       glue.deletePartition(deletePartitionRequest)
     }.void
 
