@@ -3,10 +3,13 @@ package com.gu.tableversions.core
 import java.time.Instant
 
 import cats.effect.IO
+import cats.implicits._
 import com.gu.tableversions.core.Partition.PartitionColumn
 import com.gu.tableversions.core.TableVersions.TableOperation.{AddPartitionVersion, AddTableVersion, RemovePartition}
 import com.gu.tableversions.core.TableVersions._
 import org.scalatest.{FlatSpec, Matchers}
+
+import scala.util.Random
 
 /**
   * Spec containing tests that apply across all TableVersions implementations.
@@ -371,6 +374,35 @@ trait TableVersionsSpec {
       versionSetToFirst shouldBe SnapshotTableVersion(version1)
       versionSetToSecond shouldBe SnapshotTableVersion(version2)
       versionSetToLatest shouldEqual versionAfterWrites
+    }
+
+    it should "return updates in the same order as they were committed, but with the most recent first" in {
+      val scenario = for {
+        tableVersions <- emptyTableVersions
+        _ <- tableVersions.init(table, isSnapshot = true, userId, UpdateMessage("init"), Instant.now())
+
+        // Generate some updates
+        indexedVersions <- (1 to 100).map(n => Version.generateVersion.map(v => n -> v)).toList.sequence
+        initialUpdates = indexedVersions.map {
+          case (n, version) =>
+            TableUpdate(userId, UpdateMessage(s"Commit number $n"), timestamp(n.toLong), List(AddTableVersion(version)))
+        }
+
+        tableUpdates = Random.shuffle(initialUpdates)
+
+        // Commit all the updates
+        _ <- tableUpdates.map(update => tableVersions.commit(table, update)).sequence
+
+        updateHistory <- tableVersions.updates(table)
+
+      } yield (tableUpdates, updateHistory)
+
+      val (committedUpdates, updateHistory) = scenario.unsafeRunSync()
+      val updateHistoryWithoutInitOperation = updateHistory.dropRight(1)
+
+      val expectedUpdates = committedUpdates.map(_.header.id).reverse
+      updateHistoryWithoutInitOperation.map(_.id) should contain theSameElementsInOrderAs expectedUpdates
+      updateHistoryWithoutInitOperation.map(_.id) should contain theSameElementsInOrderAs expectedUpdates
     }
 
     it should "return an error if trying to get current version of an unknown table" in {

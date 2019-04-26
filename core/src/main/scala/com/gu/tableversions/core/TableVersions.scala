@@ -106,7 +106,7 @@ object TableVersions {
       TableUpdate(TableUpdateHeader(userId, message, timestamp), operations)
   }
 
-  case class ErrorMessage(value: String) extends AnyVal
+  final case class ErrorMessage(value: String) extends AnyVal
 
   /** ADT for operations on tables. */
   sealed trait TableOperation
@@ -118,8 +118,16 @@ object TableVersions {
     final case class RemovePartition(partition: Partition) extends TableOperation
   }
 
-  /** The current state of the table, including all updates and the current version. */
-  case class TableState(currentVersion: CommitId, updates: List[TableUpdate])
+  /**
+    * The current state of the table, including all updates and the current version, as produced by a
+    * concrete implementation.
+    *
+    * @param currentVersion The ID of the committed update that's considered the current version.
+    *                       This will refer to the latest update unless a rollback operation has been performed.
+    * @param updates The list of updates that has been performed on the table.
+    *                These must be returned in the order they were executed.
+    */
+  final case class TableState(currentVersion: CommitId, updates: List[TableUpdate])
 
   /**
     * Produce current partitioned table version based on history of partition updates.
