@@ -6,7 +6,6 @@ import com.lucidchart.sbt.scalafmt.ScalafmtCorePlugin.autoImport._
 ThisBuild / organization := "com.gu"
 ThisBuild / name := "table-versions"
 ThisBuild / description := "Version control for your Big Data!"
-lazy val scalatest = "org.scalatest" %% "scalatest" % "3.0.5"
 lazy val commonSettings = Seq(
   version := "0.0.1",
   licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0")),
