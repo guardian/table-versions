@@ -1,33 +1,14 @@
 package com.gu.tableversions.glue
 
 import java.net.URI
-
 import cats.effect.Sync
 import cats.implicits._
 import com.amazonaws.services.glue.AWSGlue
-import com.amazonaws.services.glue.model.{
-  CreatePartitionRequest,
-  DeletePartitionRequest,
-  GetPartitionsRequest,
-  GetPartitionsResult,
-  GetTableRequest,
-  PartitionInput,
-  StorageDescriptor,
-  TableInput,
-  UpdatePartitionRequest,
-  UpdateTableRequest,
-  Partition => GluePartition,
-  Table => GlueTable
-}
+import com.amazonaws.services.glue.model.{Partition => GluePartition, Table => GlueTable, TableVersion => _, _}
 import com.gu.tableversions.core.Partition.{ColumnValue, PartitionColumn}
-import com.gu.tableversions.core.{PartitionedTableVersion, SnapshotTableVersion, TableName, TableVersion, _}
+import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore.TableOperation
-import com.gu.tableversions.metastore.Metastore.TableOperation.{
-  AddPartition,
-  RemovePartition,
-  UpdatePartitionVersion,
-  UpdateTableVersion
-}
+import com.gu.tableversions.metastore.Metastore.TableOperation._
 import com.gu.tableversions.metastore.{Metastore, VersionPaths}
 
 import scala.collection.JavaConversions._
@@ -52,7 +33,7 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
         F.delay(snapshotTableVersion(tableLocation))
       else
         getPartitionedTableVersion(table, tableLocation, partitionColumns)
-    } yield (version)
+    } yield version
   }
 
   private def getPartitionedTableVersion(

@@ -4,20 +4,15 @@ import java.net.URI
 
 import cats.effect.IO
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import com.amazonaws.auth.{
-  AWSCredentialsProviderChain,
-  EnvironmentVariableCredentialsProvider,
-  InstanceProfileCredentialsProvider,
-  SystemPropertiesCredentialsProvider
-}
+import com.amazonaws.auth._
 import com.amazonaws.regions.Regions
-import com.amazonaws.services.glue.model._
 import com.amazonaws.services.glue.{AWSGlue, AWSGlueClient}
 import com.gu.tableversions.core.Partition.PartitionColumn
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.MetastoreSpec
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import cats.implicits._
+import com.amazonaws.services.glue.model._
 
 import scala.util.Random
 
@@ -62,17 +57,23 @@ class GlueMetastoreSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
                                                        deleteTable(partitionedTable.name))
 
   private def initTable(table: TableDefinition): IO[Unit] = {
-    def column(name: String, columnType: String) = new Column().withName(name).withType(columnType)
     val storageDescription = new StorageDescriptor()
       .withLocation(table.location.toString)
-      .withColumns(column("id", "String"), column("field1", "String"))
+      .withColumns(
+        new Column().withName("id").withType("String"),
+        new Column().withName("field1").withType("String")
+      )
 
     val input = {
       val unpartitionedInput = new TableInput()
         .withName(table.name.name)
         .withDescription("table used in integration tests for table versions")
         .withStorageDescriptor(storageDescription)
-      if (table.isSnapshot) unpartitionedInput else unpartitionedInput.withPartitionKeys(column("date", "date"))
+
+      if (table.isSnapshot)
+        unpartitionedInput
+      else
+        unpartitionedInput.withPartitionKeys(new Column().withName("date").withType("date"))
     }
 
     val req = new CreateTableRequest().withDatabaseName(table.name.schema).withTableInput(input)
