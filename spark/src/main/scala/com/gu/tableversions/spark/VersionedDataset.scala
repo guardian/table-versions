@@ -10,6 +10,7 @@ import com.gu.tableversions.core.TableVersions.{TableOperation, TableUpdate, Upd
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore.TableChanges
 import com.gu.tableversions.metastore.{Metastore, VersionPaths}
+import org.apache.hadoop.fs.versioned.VersionedFileSystem
 import org.apache.spark.sql.{Dataset, Row, SaveMode, SparkSession}
 
 /**
@@ -57,8 +58,7 @@ object VersionedDataset {
         partitionPaths = VersionPaths.resolveVersionedPartitionPaths(datasetPartitions, version, table.location)
 
         // Write Spark dataset to the versioned path
-        _ <- IO(
-          VersionedDataset.writeVersionedPartitions(dataset, table, partitionPaths)(dataset.sparkSession))
+        _ <- IO(VersionedDataset.writeVersionedPartitions(dataset, table, partitionPaths)(dataset.sparkSession))
 
       } yield datasetPartitions.map(partition => AddPartitionVersion(partition, version))
 
@@ -132,7 +132,7 @@ object VersionedDataset {
     dataset.write
       .mode(SaveMode.Append)
       .partitionBy(partitions: _*)
-      .parquet("versioned://" + table.location.getPath)
+      .parquet(VersionedFileSystem.SCHEME + "://" + table.location.getPath)
   }
 
 }
