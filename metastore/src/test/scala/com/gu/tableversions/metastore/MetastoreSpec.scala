@@ -170,20 +170,29 @@ trait MetastoreSpec {
       val scenario = for {
         metastore <- emptyMetastore
         _ <- initUnderlyingTable
+        initialVersion <- metastore.currentVersion(table)
         version <- Version.generateVersion
-        _ <- metastore.update(
-          table,
-          TableChanges(
-            List(
-              UpdatePartitionVersion(Partition(dateCol, "2019-03-01"), version)
+        updateResultAsEither <- metastore
+          .update(
+            table,
+            TableChanges(
+              List(
+                UpdatePartitionVersion(Partition(dateCol, "2019-03-01"), version)
+              )
             )
           )
-        )
+          .redeem(
+            error => Left(error),
+            success => Right(success)
+          )
+        versionAfterUpdateAttempt <- metastore.currentVersion(table)
+      } yield (updateResultAsEither, initialVersion, versionAfterUpdateAttempt)
 
-      } yield ()
+      val (updateResultAsEither, initialVersion, versionAfterUpdateAttempt) =
+        scenario.guarantee(tearDownUnderlyingTable).unsafeRunSync()
 
-      val ex = the[Exception] thrownBy scenario.guarantee(tearDownUnderlyingTable).unsafeRunSync()
-      ex.getMessage.toLowerCase should include regex "notfound|not found"
+      updateResultAsEither should be('left)
+      versionAfterUpdateAttempt shouldBe initialVersion
     }
 
   }
