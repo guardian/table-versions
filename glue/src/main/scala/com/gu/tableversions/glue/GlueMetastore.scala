@@ -18,7 +18,7 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
   override def currentVersion(table: TableName): F[TableVersion] = {
 
     def getPartitionColumns(glueTable: GlueTable): List[PartitionColumn] =
-      Option(glueTable.getPartitionKeys).toList.flatten map { glueColumn =>
+      Option(glueTable.getPartitionKeys).toList.flatten.map { glueColumn =>
         PartitionColumn(glueColumn.getName)
       }
 
@@ -27,10 +27,10 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
 
     for {
       glueTable <- getGlueTable(table)
-      partitionColumns <- F.delay(getPartitionColumns(glueTable))
-      tableLocation <- F.delay(findTableLocation(glueTable))
+      partitionColumns = getPartitionColumns(glueTable)
+      tableLocation = findTableLocation(glueTable)
       version <- if (partitionColumns.isEmpty)
-        F.delay(snapshotTableVersion(tableLocation))
+        F.pure(snapshotTableVersion(tableLocation))
       else
         getPartitionedTableVersion(table, tableLocation, partitionColumns)
     } yield version
@@ -83,17 +83,15 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
     }
     for {
       glueTable <- getGlueTable(table)
-      tableLocation <- F.delay(findTableLocation(glueTable))
+      tableLocation = findTableLocation(glueTable)
       location = partitionLocation(tableLocation)
-      storageDescriptor <- F.delay(new StorageDescriptor().withLocation(location))
-      partitionValues <- F.delay(partition.columnValues.map(_.value).toList)
-      input <- F.delay(new PartitionInput().withValues(partitionValues).withStorageDescriptor(storageDescriptor))
-
+      storageDescriptor = new StorageDescriptor().withLocation(location)
+      partitionValues = partition.columnValues.map(_.value).toList
+      input = new PartitionInput().withValues(partitionValues).withStorageDescriptor(storageDescriptor)
       addPartitionRequest = new CreatePartitionRequest()
         .withDatabaseName(table.schema)
         .withTableName(table.name)
         .withPartitionInput(input)
-
       _ <- F.delay { glue.createPartition(addPartitionRequest) }
     } yield ()
   }
@@ -120,31 +118,31 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
   private def versionedPartitionLocation(table: TableName, partition: Partition, version: Version): F[URI] =
     for {
       gluetable <- getGlueTable(table)
-      tableLocation <- F.delay(findTableLocation(gluetable))
-      partitionLocation <- F.delay(partition.resolvePath(tableLocation))
-      versionedPartitionLocation <- F.delay(VersionPaths.pathFor(partitionLocation, version))
+      tableLocation = findTableLocation(gluetable)
+      partitionLocation = partition.resolvePath(tableLocation)
+      versionedPartitionLocation = VersionPaths.pathFor(partitionLocation, version)
     } yield versionedPartitionLocation
 
-  def removePartition(table: TableName, partition: Partition): F[Unit] =
-    F.delay {
-      val partitionValues = partition.columnValues.map(_.value).toList
-      val deletePartitionRequest = new DeletePartitionRequest()
-        .withDatabaseName(table.schema)
-        .withTableName(table.name)
-        .withPartitionValues(partitionValues)
-      glue.deletePartition(deletePartitionRequest)
-    }.void
+  def removePartition(table: TableName, partition: Partition): F[Unit] = {
+    val partitionValues = partition.columnValues.map(_.value).toList
+    val deletePartitionRequest = new DeletePartitionRequest()
+      .withDatabaseName(table.schema)
+      .withTableName(table.name)
+      .withPartitionValues(partitionValues)
+
+    F.delay(glue.deletePartition(deletePartitionRequest)).void
+  }
 
   def updateTableLocation(table: TableName, version: Version): F[Unit] = {
     for {
       glueTable <- getGlueTable(table)
-      glueTableLocation <- F.delay(new URI(glueTable.getStorageDescriptor.getLocation))
-      basePath <- F.delay(VersionPaths.versionedToBasePath(glueTableLocation))
-      versionedPath <- F.delay(VersionPaths.pathFor(basePath, version))
-      storageDescriptor <- F.delay(new StorageDescriptor().withLocation(versionedPath.toString))
-      tableInput <- F.delay(new TableInput().withName(table.name).withStorageDescriptor(storageDescriptor))
-      updateRequest <- F.delay(new UpdateTableRequest().withDatabaseName(table.schema).withTableInput(tableInput))
-      res <- F.delay { glue.updateTable(updateRequest) }
+      glueTableLocation = new URI(glueTable.getStorageDescriptor.getLocation)
+      basePath = VersionPaths.versionedToBasePath(glueTableLocation)
+      versionedPath = VersionPaths.pathFor(basePath, version)
+      storageDescriptor = new StorageDescriptor().withLocation(versionedPath.toString)
+      tableInput = new TableInput().withName(table.name).withStorageDescriptor(storageDescriptor)
+      updateRequest = new UpdateTableRequest().withDatabaseName(table.schema).withTableInput(tableInput)
+      res <- F.delay(glue.updateTable(updateRequest))
     } yield ()
   }
 
