@@ -128,7 +128,11 @@ class VersionedFileSystem extends FileSystem {
   private lazy val toSchemeAndVersion: String => Path => Path = scheme => setScheme(scheme) andThen appendVersion
 
   private lazy val baseVersionedPath: Path => Path = path => toSchemeAndVersion(baseURI.getScheme)(path)
-  private lazy val versionedPath: Path => Path = path => setScheme("versioned")(path)
+  private lazy val versionedPath: Path => Path = path => setScheme(VersionedFileSystem.SCHEME)(path)
 
   override protected def checkPath(path: Path): Unit = super.checkPath(baseVersionedPath(path))
+}
+
+object VersionedFileSystem {
+  val SCHEME = "versioned"
 }
