@@ -6,10 +6,7 @@ import com.gu.tableversions.spark.SparkHiveSuite
 import org.apache.spark.sql.SaveMode
 import org.scalatest.{FlatSpec, Matchers}
 
-class VersionedFileSystemSpec
-    extends FlatSpec
-    with Matchers
-    with SparkHiveSuite {
+class VersionedFileSystemSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
   spark.sparkContext.setLogLevel("ERROR")
 
