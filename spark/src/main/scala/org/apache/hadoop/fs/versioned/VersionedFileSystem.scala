@@ -99,9 +99,8 @@ class VersionedFileSystem extends FileSystem {
   override def getFileStatus(f: Path): FileStatus =
     toggleFileStatus(baseFS.getFileStatus(baseVersionedPath(f)), false)
 
-  override def getFileBlockLocations(file: FileStatus, start: Long, len: Long): Array[BlockLocation] = {
+  override def getFileBlockLocations(file: FileStatus, start: Long, len: Long): Array[BlockLocation] =
     super.getFileBlockLocations(toggleFileStatus(file, true), start, len)
-  }
 
   override def makeQualified(f: Path): Path = baseFS.makeQualified(baseVersionedPath(f))
 
