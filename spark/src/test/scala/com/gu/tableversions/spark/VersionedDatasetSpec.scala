@@ -79,18 +79,16 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
     val table = TableDefinition(TableName("dev", "test"), tableUri, PartitionSchema(List(PartitionColumn("date"))))
 
-    spark.sparkContext.hadoopConfiguration.set("fs.versioned.version", version1.label)
-    VersionedDataset.writeVersionedPartitions(eventsGroup1, table, partitionPaths)
+    VersionedDataset.writeVersionedPartitions(eventsGroup1, table, version1, partitionPaths)
 
-    spark.sparkContext.hadoopConfiguration.set("fs.versioned.version", version2.label)
-    VersionedDataset.writeVersionedPartitions(eventsGroup2, table, partitionPaths)
+    VersionedDataset.writeVersionedPartitions(eventsGroup2, table, version2, partitionPaths)
 
     // Check that data was written to the right place.
 
     val path = tableUri.resolve(s"table/").toString.replace("file:", "versioned://")
 
     spark.sparkContext.hadoopConfiguration.set("fs.versioned.version", version1.label)
-        readDataset[Event](new URI(path))
+    readDataset[Event](new URI(path))
       .collect() should contain theSameElementsAs List(
       Event("101", "A", Date.valueOf("2019-01-15")),
       Event("102", "B", Date.valueOf("2019-01-15")),

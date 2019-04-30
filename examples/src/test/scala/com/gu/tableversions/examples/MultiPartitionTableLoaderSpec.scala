@@ -17,6 +17,8 @@ import org.scalatest.{FlatSpec, Matchers}
   */
 class MultiPartitionTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
+  spark.sparkContext.setLogLevel("ERROR")
+
   import MultiPartitionTableLoaderSpec._
 
   "Writing multiple versions of a dataset with multiple partition columns" should "produce distinct partition versions" in {
@@ -24,6 +26,8 @@ class MultiPartitionTableLoaderSpec extends FlatSpec with Matchers with SparkHiv
     import spark.implicits._
     implicit val tableVersions: TableVersions[IO] = InMemoryTableVersions[IO].unsafeRunSync()
     implicit val metastore: Metastore[IO] = new SparkHiveMetastore[IO]()
+
+    spark.sparkContext.hadoopConfiguration.set("fs.versioned.baseFS", "file")
 
     val table = TableDefinition(
       TableName(schema, "ad_impressions"),

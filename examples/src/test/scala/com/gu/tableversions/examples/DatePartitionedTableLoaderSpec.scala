@@ -18,6 +18,8 @@ import org.scalatest.{FlatSpec, Matchers}
   */
 class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
+  spark.sparkContext.setLogLevel("ERROR")
+
   import DatePartitionedTableLoaderSpec._
 
   val table = TableDefinition(
@@ -41,6 +43,8 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
     import spark.implicits._
     implicit val tableVersions: TableVersions[IO] = InMemoryTableVersions[IO].unsafeRunSync()
     implicit val metastore: Metastore[IO] = new SparkHiveMetastore[IO]()
+
+    spark.sparkContext.hadoopConfiguration.set("fs.versioned.baseFS", "file")
 
     val loader = new TableLoader[Pageview](table, ddl, isSnapshot = false)
 

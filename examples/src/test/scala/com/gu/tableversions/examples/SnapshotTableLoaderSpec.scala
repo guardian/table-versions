@@ -16,6 +16,8 @@ import org.scalatest.{FlatSpec, Matchers}
   */
 class SnapshotTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
+  spark.sparkContext.setLogLevel("ERROR")
+
   import SnapshotTableLoaderSpec._
 
   val table = TableDefinition(TableName(schema, "users"), tableUri, PartitionSchema.snapshot)
