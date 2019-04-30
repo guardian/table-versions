@@ -9,9 +9,7 @@ import org.scalatest.{FlatSpec, Matchers}
 class VersionedFileSystemSpec
     extends FlatSpec
     with Matchers
-    with SparkHiveSuite
-    with S3TestSuite
-    with S3SparkTestSuite {
+    with SparkHiveSuite {
 
   spark.sparkContext.setLogLevel("ERROR")
 
@@ -27,8 +25,6 @@ class VersionedFileSystemSpec
 
   "VersionedFileSystem" should "write partitions with a version suffix" in {
     import spark.implicits._
-
-    client.createBucket("romain")
 
     spark.sparkContext.hadoopConfiguration.set("fs.versioned.baseFS", "file")
     spark.sparkContext.hadoopConfiguration.set("fs.versioned.version", "version1")
