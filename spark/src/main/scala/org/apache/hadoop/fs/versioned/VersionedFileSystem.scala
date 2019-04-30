@@ -140,7 +140,7 @@ class VersionedFileSystem extends FileSystem {
 //  override def setPermission(f: Path, permission: FsPermission): Unit =
 //    super.setPermission(baseVersionedPath(f), permission)
 
-  private def appendVersion(path: Path): Path = {
+  def appendVersion(path: Path): Path = {
     val uri = path.toUri
 
     val specificPart = partitionMappings.foldLeft(uri.getSchemeSpecificPart) {
@@ -152,12 +152,12 @@ class VersionedFileSystem extends FileSystem {
     new Path(new URI(s"${uri.getScheme}:$specificPart"))
   }
 
-  private def setScheme(scheme: String, path: Path): Path =
+  def setScheme(scheme: String, path: Path): Path =
     new Path(new URI(s"$scheme:${path.toUri.getSchemeSpecificPart}"))
 
-  private def baseVersionedPath(path: Path): Path = appendVersion(setScheme(baseURI.getScheme, path))
+  def baseVersionedPath(path: Path): Path = appendVersion(setScheme(baseURI.getScheme, path))
 
-  private def versionedPath(path: Path): Path = setScheme(VersionedFileSystem.SCHEME, path)
+  def versionedPath(path: Path): Path = setScheme(VersionedFileSystem.SCHEME, path)
 }
 
 object VersionedFileSystem {
