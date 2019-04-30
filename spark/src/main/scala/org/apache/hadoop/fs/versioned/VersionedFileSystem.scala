@@ -99,48 +99,48 @@ class VersionedFileSystem extends FileSystem {
   override def getFileStatus(f: Path): FileStatus =
     toggleFileStatus(baseFS.getFileStatus(baseVersionedPath(f)), false)
 
-  override def getFileBlockLocations(file: FileStatus, start: Long, len: Long): Array[BlockLocation] =
-    super.getFileBlockLocations(toggleFileStatus(file, true), start, len)
+//  override def getFileBlockLocations(file: FileStatus, start: Long, len: Long): Array[BlockLocation] =
+//    super.getFileBlockLocations(toggleFileStatus(file, true), start, len)
+//
+//  override def makeQualified(f: Path): Path = baseFS.makeQualified(baseVersionedPath(f))
+//
+//  override def checkPath(f: Path): Unit = super.checkPath(baseVersionedPath(f))
+//
+//  override def setReplication(f: Path, replication: Short): Boolean =
+//    baseFS.setReplication(baseVersionedPath(f), replication)
+//
+//  override def copyFromLocalFile(src: Path, dst: Path): Unit =
+//    baseFS.copyFromLocalFile(baseVersionedPath(src), baseVersionedPath(dst))
+//
+//  override def copyFromLocalFile(delSrc: Boolean, src: Path, dst: Path): Unit =
+//    baseFS.copyFromLocalFile(delSrc, baseVersionedPath(src), baseVersionedPath(dst))
+//
+//  override def copyFromLocalFile(delSrc: Boolean, overwrite: Boolean, srcs: Array[Path], dst: Path): Unit =
+//    baseFS.copyFromLocalFile(delSrc, overwrite, srcs, baseVersionedPath(dst))
+//
+//  override def copyFromLocalFile(delSrc: Boolean, overwrite: Boolean, src: Path, dst: Path): Unit =
+//    baseFS.copyFromLocalFile(delSrc, overwrite, src, baseVersionedPath(dst))
+//
+//  override def copyToLocalFile(src: Path, dst: Path): Unit = baseFS.copyToLocalFile(src, dst)
+//
+//  override def deleteOnExit(f: Path): Boolean = baseFS.deleteOnExit(baseVersionedPath(f))
+//
+//  override def getHomeDirectory: Path = versionedPath(baseFS.getHomeDirectory)
+//
+//  override def startLocalOutput(fsOutputFile: Path, tmpLocalFile: Path): Path =
+//    baseFS.startLocalOutput(fsOutputFile, tmpLocalFile)
+//
+//  override def getFileChecksum(f: Path): FileChecksum = super.getFileChecksum(baseVersionedPath(f))
+//
+//  override def setOwner(f: Path, username: String, groupname: String): Unit =
+//    super.setOwner(baseVersionedPath(f), username, groupname)
+//
+//  override def setTimes(f: Path, mtime: Long, atime: Long): Unit = super.setTimes(baseVersionedPath(f), mtime, atime)
+//
+//  override def setPermission(f: Path, permission: FsPermission): Unit =
+//    super.setPermission(baseVersionedPath(f), permission)
 
-  override def makeQualified(f: Path): Path = baseFS.makeQualified(baseVersionedPath(f))
-
-  override def checkPath(f: Path): Unit = super.checkPath(baseVersionedPath(f))
-
-  override def setReplication(f: Path, replication: Short): Boolean =
-    baseFS.setReplication(baseVersionedPath(f), replication)
-
-  override def copyFromLocalFile(src: Path, dst: Path): Unit =
-    baseFS.copyFromLocalFile(baseVersionedPath(src), baseVersionedPath(dst))
-
-  override def copyFromLocalFile(delSrc: Boolean, src: Path, dst: Path): Unit =
-    baseFS.copyFromLocalFile(delSrc, baseVersionedPath(src), baseVersionedPath(dst))
-
-  override def copyFromLocalFile(delSrc: Boolean, overwrite: Boolean, srcs: Array[Path], dst: Path): Unit =
-    baseFS.copyFromLocalFile(delSrc, overwrite, srcs, baseVersionedPath(dst))
-
-  override def copyFromLocalFile(delSrc: Boolean, overwrite: Boolean, src: Path, dst: Path): Unit =
-    baseFS.copyFromLocalFile(delSrc, overwrite, src, baseVersionedPath(dst))
-
-  override def copyToLocalFile(src: Path, dst: Path): Unit = baseFS.copyToLocalFile(src, dst)
-
-  override def deleteOnExit(f: Path): Boolean = baseFS.deleteOnExit(baseVersionedPath(f))
-
-  override def getHomeDirectory: Path = versionedPath(baseFS.getHomeDirectory)
-
-  override def startLocalOutput(fsOutputFile: Path, tmpLocalFile: Path): Path =
-    baseFS.startLocalOutput(fsOutputFile, tmpLocalFile)
-
-  override def getFileChecksum(f: Path): FileChecksum = super.getFileChecksum(baseVersionedPath(f))
-
-  override def setOwner(f: Path, username: String, groupname: String): Unit =
-    super.setOwner(baseVersionedPath(f), username, groupname)
-
-  override def setTimes(f: Path, mtime: Long, atime: Long): Unit = super.setTimes(baseVersionedPath(f), mtime, atime)
-
-  override def setPermission(f: Path, permission: FsPermission): Unit =
-    super.setPermission(baseVersionedPath(f), permission)
-
-  private lazy val appendVersion: Path => Path = path => {
+  private def appendVersion(path: Path): Path = {
     val uri = path.toUri
 
     val specificPart = partitionMappings.foldLeft(uri.getSchemeSpecificPart) {
@@ -152,13 +152,12 @@ class VersionedFileSystem extends FileSystem {
     new Path(new URI(s"${uri.getScheme}:$specificPart"))
   }
 
-  private lazy val setScheme: String => Path => Path =
-    scheme => path => new Path(new URI(s"$scheme:${path.toUri.getSchemeSpecificPart}"))
+  private def setScheme(scheme: String, path: Path): Path =
+    new Path(new URI(s"$scheme:${path.toUri.getSchemeSpecificPart}"))
 
-  private lazy val toSchemeAndVersion: String => Path => Path = scheme => setScheme(scheme) andThen appendVersion
+  private def baseVersionedPath(path: Path): Path = appendVersion(setScheme(baseURI.getScheme, path))
 
-  private lazy val baseVersionedPath: Path => Path = path => toSchemeAndVersion(baseURI.getScheme)(path)
-  private lazy val versionedPath: Path => Path = path => setScheme(VersionedFileSystem.SCHEME)(path)
+  private def versionedPath(path: Path): Path = setScheme(VersionedFileSystem.SCHEME, path)
 }
 
 object VersionedFileSystem {
