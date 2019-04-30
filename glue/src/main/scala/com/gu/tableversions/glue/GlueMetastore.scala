@@ -49,7 +49,7 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
     def toPartitionWithVersion(gluePartition: GluePartition): (Partition, Version) = {
 
       val partitionColumnAndValue: List[(PartitionColumn, String)] = partitionColumns.zip(gluePartition.getValues)
-      val columnValues: List[ColumnValue] = partitionColumnAndValue.map { case (key, value) => ColumnValue(key, value) }
+      val columnValues: List[ColumnValue] = partitionColumnAndValue.map(ColumnValue.tupled)
       val partition: Partition = toPartition(columnValues)
       val location = new URI(gluePartition.getStorageDescriptor.getLocation)
       partition -> VersionPaths.parseVersion(location)
