@@ -33,7 +33,6 @@ class VersionedFileSystemSpec
     spark.sparkContext.hadoopConfiguration.set("fs.versioned.baseFS", "file")
     spark.sparkContext.hadoopConfiguration.set("fs.versioned.version", "version1")
 
-
     val path = tableUri.resolve(s"table/").toString.replace("file:", "versioned://")
 
     val partitionsValues =

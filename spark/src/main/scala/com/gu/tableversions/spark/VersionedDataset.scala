@@ -58,7 +58,8 @@ object VersionedDataset {
         partitionPaths = VersionPaths.resolveVersionedPartitionPaths(datasetPartitions, version, table.location)
 
         // Write Spark dataset to the versioned path
-        _ <- IO(VersionedDataset.writeVersionedPartitions(dataset, table, partitionPaths)(dataset.sparkSession))
+        _ <- IO(
+          VersionedDataset.writeVersionedPartitions(dataset, table, version, partitionPaths)(dataset.sparkSession))
 
       } yield datasetPartitions.map(partition => AddPartitionVersion(partition, version))
 
@@ -121,7 +122,10 @@ object VersionedDataset {
   private[spark] def writeVersionedPartitions[T](
       dataset: Dataset[T],
       table: TableDefinition,
+      version: Version,
       partitionPaths: Map[Partition, URI])(implicit spark: SparkSession): Unit = {
+
+    spark.sparkContext.hadoopConfiguration.set("fs.versioned.version", version.label)
 
     VersionPaths.flattenMap(partitionPaths.keys.toList) foreach {
       case (k, v) => spark.sparkContext.hadoopConfiguration.set(k, v)
