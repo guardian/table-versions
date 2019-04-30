@@ -4,12 +4,7 @@ import java.net.URI
 
 import cats.effect.IO
 import cats.implicits._
-import com.amazonaws.auth.{
-  EnvironmentVariableCredentialsProvider,
-  InstanceProfileCredentialsProvider,
-  SystemPropertiesCredentialsProvider,
-  _
-}
+import com.amazonaws.auth._
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import com.amazonaws.services.glue.model._
 import com.amazonaws.services.glue.{AWSGlue, AWSGlueClient}
