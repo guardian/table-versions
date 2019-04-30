@@ -8,7 +8,6 @@ import com.gu.tableversions.core.{Partition, Version}
   * Encodes the mapping between version numbers and storage paths.
   */
 object VersionPaths {
-  val KEY_PREFIX = "versioned__"
 
   /**
     * @return the fully resolved paths for each partitions, derived from the table location and version
@@ -37,12 +36,4 @@ object VersionPaths {
 
       new URI(versioned(normalised(partitionPath.toString)))
     }
-
-  def flattenMap(partitions: List[Partition]): Map[String, String] = {
-    import scala.language.postfixOps
-    partitions map { partition =>
-      val columnValueHivePath = partition.columnValues.map(cv => cv.column.name + "=" + cv.value).toList.mkString("/")
-      (KEY_PREFIX + columnValueHivePath, columnValueHivePath)
-    } toMap
-  }
 }
