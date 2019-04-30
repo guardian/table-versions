@@ -127,7 +127,7 @@ object VersionedDataset {
 
     spark.sparkContext.hadoopConfiguration.set("fs.versioned.version", version.label)
 
-    VersionPaths.flattenMap(partitionPaths.keys.toList) foreach {
+    VersionedFileSystem.partitionMappings(partitionPaths.keys.toList) foreach {
       case (k, v) => spark.sparkContext.hadoopConfiguration.set(k, v)
     }
 
@@ -136,7 +136,7 @@ object VersionedDataset {
     dataset.write
       .mode(SaveMode.Append)
       .partitionBy(partitions: _*)
-      .parquet(VersionedFileSystem.SCHEME + "://" + table.location.getPath)
+      .parquet(VersionedFileSystem.SCHEME + "://" + table.location.getPath) // TODO: Take in format parameter. Or a dataset writer?
   }
 
 }

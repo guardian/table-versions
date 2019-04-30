@@ -2,7 +2,6 @@ package org.apache.hadoop.fs.versioned
 
 import com.gu.tableversions.core.Partition
 import com.gu.tableversions.core.Partition.{ColumnValue, PartitionColumn}
-import com.gu.tableversions.metastore.VersionPaths
 import com.gu.tableversions.spark.SparkHiveSuite
 import org.apache.spark.sql.SaveMode
 import org.scalatest.{FlatSpec, Matchers}
@@ -21,7 +20,8 @@ class VersionedFileSystemSpec
     val m =
       List(Partition(ColumnValue(PartitionColumn("date"), "2019-01-01"), ColumnValue(PartitionColumn("hour"), "01")))
 
-    VersionPaths.flattenMap(m) shouldBe Map("versioned__date=2019-01-01/hour=01" -> "date=2019-01-01/hour=01")
+    VersionedFileSystem.partitionMappings(m) shouldBe Map(
+      "versioned__date=2019-01-01/hour=01" -> "date=2019-01-01/hour=01")
 
   }
 
@@ -44,7 +44,7 @@ class VersionedFileSystemSpec
         Partition(ColumnValue(PartitionColumn("date"), "2019-01-01"), ColumnValue(PartitionColumn("hour"), "05"))
       )
 
-    VersionPaths.flattenMap(partitionsValues) foreach {
+    VersionedFileSystem.partitionMappings(partitionsValues) foreach {
       case (k, v) => spark.sparkContext.hadoopConfiguration.set(k, v)
     }
 

@@ -3,6 +3,7 @@ package org.apache.hadoop.fs.versioned
 import java.net.URI
 import java.util.Objects
 
+import com.gu.tableversions.core.Partition
 import com.gu.tableversions.metastore.VersionPaths
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs._
@@ -28,7 +29,7 @@ class VersionedFileSystem extends FileSystem {
     import scala.collection.JavaConverters._
 
     mappings = conf.iterator.asScala
-      .filter(_.getKey.startsWith(VersionPaths.KEY_PREFIX))
+      .filter(_.getKey.startsWith(VersionedFileSystem.KEY_PREFIX))
       .map(_.getValue)
       .toList
       .map { v =>
@@ -129,4 +130,12 @@ class VersionedFileSystem extends FileSystem {
 
 object VersionedFileSystem {
   val SCHEME = "versioned"
+  val KEY_PREFIX = s"${SCHEME}__"
+
+  def partitionMappings(partitions: List[Partition]): Map[String, String] = {
+    partitions.map { partition =>
+      val columnValueHivePath = partition.columnValues.map(cv => cv.column.name + "=" + cv.value).toList.mkString("/")
+      (KEY_PREFIX + columnValueHivePath, columnValueHivePath)
+    }.toMap
+  }
 }
