@@ -36,10 +36,6 @@ class VersionedFileSystem extends FileSystem {
       }
       .toMap
 
-    // versioned filesystem URIs take the form `versioned:URI`, e.g:
-    //    versioned:s3://my-bucket
-    //    versioned:file://tmp
-
     // When initialising the versioned filesystem, we need to extract the
     // URI for the base filesystem, which is accessible under the scheme
     // specific part of the URI.
@@ -48,11 +44,12 @@ class VersionedFileSystem extends FileSystem {
     baseFS.initialize(baseURI, conf)
   }
 
-  override def getUri: URI =
-    baseURI
+  override def getUri: URI = {
+    new URI(s"${VersionedFileSystem.SCHEME}:${baseURI.getSchemeSpecificPart}")
+  }
 
   override def open(f: Path, bufferSize: Int): FSDataInputStream =
-    baseFS.open(setScheme(baseURI.getScheme)(f), bufferSize)
+    baseFS.open(baseVersionedPath(f), bufferSize)
 
   override def create(
       f: Path,
@@ -74,7 +71,7 @@ class VersionedFileSystem extends FileSystem {
     baseFS.delete(baseVersionedPath(f), recursive)
 
   override def listStatus(f: Path): Array[FileStatus] =
-    baseFS.listStatus(setScheme(baseURI.getScheme)(f)) map { fileStatus =>
+    baseFS.listStatus(baseVersionedPath(f)) map { fileStatus =>
       new FileStatus(
         fileStatus.getLen,
         fileStatus.isDirectory,
@@ -91,14 +88,13 @@ class VersionedFileSystem extends FileSystem {
   override def setWorkingDirectory(new_dir: Path): Unit =
     baseFS.setWorkingDirectory(baseVersionedPath(new_dir))
 
-  override def getWorkingDirectory: Path =
-    setScheme(baseURI.getScheme)(baseFS.getWorkingDirectory)
+  override def getWorkingDirectory: Path = baseVersionedPath(baseFS.getWorkingDirectory)
 
   override def mkdirs(f: Path, permission: FsPermission): Boolean =
     baseFS.mkdirs(baseVersionedPath(f), permission)
 
   override def getFileStatus(f: Path): FileStatus = {
-    val fileStatus = baseFS.getFileStatus(setScheme(baseURI.getScheme)(f))
+    val fileStatus = baseFS.getFileStatus(baseVersionedPath(f))
 
     new FileStatus(
       fileStatus.getLen,
@@ -129,8 +125,6 @@ class VersionedFileSystem extends FileSystem {
 
   private lazy val baseVersionedPath: Path => Path = path => toSchemeAndVersion(baseURI.getScheme)(path)
   private lazy val versionedPath: Path => Path = path => setScheme(VersionedFileSystem.SCHEME)(path)
-
-  override protected def checkPath(path: Path): Unit = super.checkPath(baseVersionedPath(path))
 }
 
 object VersionedFileSystem {
