@@ -10,7 +10,6 @@ import com.gu.tableversions.core.TableVersions.{TableOperation, TableUpdate, Upd
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore.TableChanges
 import com.gu.tableversions.metastore.{Metastore, VersionPaths}
-import org.apache.hadoop.fs.versioned.VersionedFileSystem
 import org.apache.spark.sql.{Dataset, Row, SaveMode, SparkSession}
 
 /**
@@ -134,9 +133,8 @@ object VersionedDataset {
     val partitions = table.partitionSchema.columns.map(_.name)
 
     dataset.write
-      .mode(SaveMode.Append)
       .partitionBy(partitions: _*)
-      .parquet(VersionedFileSystem.SCHEME + "://" + table.location.getPath) // TODO: Take in format parameter. Or a dataset writer?
+      .parquet(VersionedFileSystem.scheme + "://" + table.location.getPath) // TODO: Take in format parameter. Or a dataset writer?
   }
 
 }

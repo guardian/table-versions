@@ -150,6 +150,48 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
     tableUpdate.userId shouldBe userId
   }
 
+  "Inserting multiple records into the same partition" should "write the correct data to the filesystem" in {
+    spark.sparkContext.hadoopConfiguration.set("fs.versioned.baseFS", "file")
+
+    val eventsTable =
+      TableDefinition(TableName(schema, "events"), tableUri, PartitionSchema(List(PartitionColumn("date"))))
+
+    val initialTableVersion = PartitionedTableVersion(partitionVersions = Map.empty)
+    val stubbedChanges = TableChanges(initialTableVersion.partitionVersions.map(AddPartition.tupled).toList)
+
+    // Stub metastore
+    implicit val stubMetastore: Metastore[IO] = new StubMetastore(
+      currentVersion = initialTableVersion,
+      computedChanges = stubbedChanges
+    )
+
+    implicit val tableVersions: TableVersions[IO] = (for {
+      t <- InMemoryTableVersions[IO]
+      _ <- t.init(eventsTable.name, isSnapshot = false, UserId("test"), UpdateMessage("init"), Instant.now())
+    } yield t).unsafeRunSync()
+
+    val events = List(
+      Event("101", "A", Date.valueOf("2019-01-15")),
+      Event("102", "B", Date.valueOf("2019-01-15"))
+    )
+
+    val timestampBeforeWriting = Instant.now()
+
+    // Do the insert
+    val userId = UserId("user-id")
+    val (tableVersion, metastoreChanges) =
+      events.toDS().versionedInsertInto(eventsTable, userId, "Test insert events into table")
+
+    // Check that data was written correctly to the right place
+    readDataset[Event](resolveTablePath(""))
+      .collect() should contain theSameElementsAs (events)
+
+    // Check that we performed the right version updates and returned the right results
+    val expectedPartitionVersions = Map(
+      Partition(PartitionColumn("date"), "2019-01-15") -> version1
+    )
+  }
+
   "Inserting a partitioned dataset" should "write the data to the versioned partitions and commit the new versions" in {
 
     spark.sparkContext.hadoopConfiguration.set("fs.versioned.baseFS", "file")

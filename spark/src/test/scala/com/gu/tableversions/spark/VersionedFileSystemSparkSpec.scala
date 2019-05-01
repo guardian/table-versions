@@ -1,8 +1,7 @@
-package org.apache.hadoop.fs.versioned
+package com.gu.tableversions.spark
 
 import com.gu.tableversions.core.Partition
 import com.gu.tableversions.core.Partition.{ColumnValue, PartitionColumn}
-import com.gu.tableversions.spark.SparkHiveSuite
 import org.apache.spark.sql.SaveMode
 import org.scalatest.{FlatSpec, Matchers}
 

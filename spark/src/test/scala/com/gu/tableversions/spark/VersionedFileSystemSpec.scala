@@ -1,4 +1,4 @@
-package org.apache.hadoop.fs.versioned
+package com.gu.tableversions.spark
 
 import java.net.URI
 
@@ -19,15 +19,15 @@ class VersionedFileSystemSpec extends FlatSpec with Matchers {
 
   }
 
-  "appendVersion" should "add a version to a given path" ignore {
-
-    val fs = new VersionedFileSystem
-    fs.initialize(new URI(s"file:///tmp/test"), ???)
-
-    val path = new Path(new URI(s"file:///tmp/test"))
-
-//    VersionedFileSystem.partitionMappings(m) shouldBe Map(
-//      "versioned__date=2019-01-01/hour=01" -> "date=2019-01-01/hour=01")
-
-  }
+//  "appendVersion" should "add a version to a given path" ignore {
+//
+//    val fs = new VersionedFileSystem
+//    fs.initialize(new URI(s"file:///tmp/test"), ???)
+//
+//    val path = new Path(new URI(s"file:///tmp/test"))
+//
+////    VersionedFileSystem.partitionMappings(m) shouldBe Map(
+////      "versioned__date=2019-01-01/hour=01" -> "date=2019-01-01/hour=01")
+//
+//  }
 }
