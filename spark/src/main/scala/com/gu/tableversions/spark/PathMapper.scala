@@ -22,9 +22,7 @@ class VersionedPathMapper(underlyingFsScheme: String, partitionMappings: Map[Str
     assert(path.toUri.getScheme == VersionedFileSystem.scheme,
            s"Path provided to `forUnderlying` ($path) not in the ${VersionedFileSystem.scheme} scheme")
 
-    val result = appendVersion(setUnderlyingScheme(path))
-    println(s"forUnderlying: input = $path  output = $result")
-    result
+    appendVersion(setUnderlyingScheme(path))
   }
 
   // convert a path from the underlying FileSystem to one in the "versioned" scheme:
@@ -44,11 +42,8 @@ class VersionedPathMapper(underlyingFsScheme: String, partitionMappings: Map[Str
           new Path(path.toString.replace(versionedPartition, partition))
       }
       .getOrElse(setVersionedScheme(path))
-//      .getOrElse(throw new IllegalArgumentException(s"Path $path not in partition mappings"))
 
-    val result = setVersionedScheme(pathWithoutVersionDirectory)
-    println(s"fromUnderlying: input = $path  output = $result")
-    result
+    setVersionedScheme(pathWithoutVersionDirectory)
   }
 
   private def appendVersion(path: Path): Path = {
@@ -64,7 +59,6 @@ class VersionedPathMapper(underlyingFsScheme: String, partitionMappings: Map[Str
           new Path(path.toString.replace(normalize(partition), normalize(versionedPartition)))
       }
       .getOrElse(path)
-//      .getOrElse(throw new IllegalArgumentException(s"Path $path not in partition mappings"))
   }
 
   private def normalize(partition: String): String =

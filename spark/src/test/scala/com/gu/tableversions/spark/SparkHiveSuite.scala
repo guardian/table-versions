@@ -99,7 +99,7 @@ trait SparkHiveSuite extends BeforeAndAfterAll with BeforeAndAfterEach with Lazy
 
   override protected def beforeEach(): Unit = {
     Files.createDirectory(inputDir)
-    //Files.createDirectory(tableDir)
+    Files.createDirectory(tableDir)
     spark.sql(s"create database $schema").take(1)
     ()
   }

@@ -134,6 +134,7 @@ object VersionedDataset {
 
     dataset.write
       .partitionBy(partitions: _*)
+      .mode(SaveMode.Append)
       .parquet(VersionedFileSystem.scheme + "://" + table.location.getPath) // TODO: Take in format parameter. Or a dataset writer?
   }
 

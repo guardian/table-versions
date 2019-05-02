@@ -48,15 +48,16 @@ class VersionedPathMapperSpec extends FreeSpec with Matchers with TableDrivenPro
     }
 
     "for paths not defined in the mapping" - {
-      "fails when attempting to convert paths from the underlying FS" in {
-        the[Exception] thrownBy modifier.fromUnderlying(new Path("s3://some-bucket/date=2019-01-04")) shouldBe an[
-          IllegalArgumentException]
+      "it should return just change the scheme when converting path to the underlying filesystem" in {
+        modifier.fromUnderlying(new Path("s3://some-bucket/date=2019-01-04")) shouldBe new Path(
+          "versioned://some-bucket/date=2019-01-04")
       }
 
-      "fails when attempting to convert paths for the underlying FS" in {
-        the[Exception] thrownBy modifier.forUnderlying(new Path("versioned://some-bucket/date=2019-01-04")) shouldBe an[
-          IllegalArgumentException]
+      "it should just change the scheme when converting path from the underlying filesystem" in {
+        modifier.forUnderlying(new Path("versioned://some-bucket/date=2019-01-04")) shouldBe new Path(
+          "s3://some-bucket/date=2019-01-04")
       }
     }
+
   }
 }

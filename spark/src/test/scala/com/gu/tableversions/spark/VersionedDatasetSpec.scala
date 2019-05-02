@@ -172,7 +172,8 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
     val events = List(
       Event("101", "A", Date.valueOf("2019-01-15")),
-      Event("102", "B", Date.valueOf("2019-01-15"))
+      Event("102", "B", Date.valueOf("2019-01-15")),
+      Event("103", "C", Date.valueOf("2019-01-15"))
     )
 
     val timestampBeforeWriting = Instant.now()
@@ -190,6 +191,17 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
     val expectedPartitionVersions = Map(
       Partition(PartitionColumn("date"), "2019-01-15") -> version1
     )
+
+    tableVersion shouldBe PartitionedTableVersion(expectedPartitionVersions)
+    metastoreChanges shouldBe stubbedChanges
+
+    val tableUpdates = tableVersions.updates(eventsTable.name).unsafeRunSync()
+    tableUpdates should have size 2
+    val tableUpdate = tableUpdates.head
+    tableUpdate.message shouldBe UpdateMessage("Test insert events into table")
+    timestampBeforeWriting.isAfter(tableUpdate.timestamp) shouldBe false
+    tableUpdate.userId shouldBe userId
+
   }
 
   "Inserting a partitioned dataset" should "write the data to the versioned partitions and commit the new versions" in {

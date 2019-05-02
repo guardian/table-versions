@@ -11,7 +11,7 @@ import org.apache.hadoop.util.Progressable
 
 abstract class ProxyFileSystem extends FileSystem {
 
-  var pathMapper: PathMapper = _
+  protected var pathMapper: PathMapper = _
 
   def setPathMapper(mapper: PathMapper): Unit =
     pathMapper = mapper
@@ -21,12 +21,10 @@ class VersionedFileSystem extends ProxyFileSystem {
 
   private var baseURI: URI = _
   private var baseFS: FileSystem = _
-  private var version: String = _
-
   override def initialize(name: URI, conf: Configuration): Unit = {
     val cacheDisabled = conf.getBoolean("fs.versioned.impl.disable.cache", false)
     val baseFSScheme = conf.get("fs.versioned.baseFS")
-    version = conf.get("fs.versioned.version")
+    val version = conf.get("fs.versioned.version")
 
     require(Objects.nonNull(baseFSScheme), "fs.versioned.baseFS not set in configuration")
     require(Objects.nonNull(version), "fs.versioned.version not set in configuration")
@@ -92,9 +90,6 @@ class VersionedFileSystem extends ProxyFileSystem {
   override def listStatus(f: Path): Array[FileStatus] =
     baseFS.listStatus(pathMapper.forUnderlying(f)) map { fileStatus =>
       toggleFileStatus(fileStatus, false)
-    } filter { fileStatus =>
-      fileStatus.getPath.toUri.getSchemeSpecificPart.contains(version) ||
-      fileStatus.isDirectory
     }
 
   override def setWorkingDirectory(new_dir: Path): Unit =
