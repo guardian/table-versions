@@ -41,7 +41,7 @@ class VersionedPathMapper(underlyingFsScheme: String, partitionMappings: Map[Str
         case (partition, versionedPartition) =>
           new Path(path.toString.replace(versionedPartition, partition))
       }
-      .getOrElse(setVersionedScheme(path))
+      .getOrElse(path)
 
     setVersionedScheme(pathWithoutVersionDirectory)
   }
