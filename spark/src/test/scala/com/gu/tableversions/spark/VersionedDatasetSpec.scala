@@ -55,7 +55,7 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
   "Writing a dataset with multiple partitions" should "store the data for each partition in a versioned folder for the partition" in {
 
-    spark.sparkContext.hadoopConfiguration.set("fs.versioned.baseFS", "file")
+    VersionedFileSystem.setUnderlyingScheme("file")
 
     val eventsGroup1 = List(
       Event("101", "A", Date.valueOf("2019-01-15")),
@@ -87,7 +87,8 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
     val path = tableUri.resolve(s"table/").toString.replace("file:", "versioned://")
 
-    spark.sparkContext.hadoopConfiguration.set("fs.versioned.version", version1.label)
+    VersionedFileSystem.setVersion(version1.label)
+
     readDataset[Event](new URI(path))
       .collect() should contain theSameElementsAs List(
       Event("101", "A", Date.valueOf("2019-01-15")),
@@ -96,7 +97,8 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
       Event("104", "B", Date.valueOf("2019-01-18"))
     )
 
-    spark.sparkContext.hadoopConfiguration.set("fs.versioned.version", version2.label)
+    VersionedFileSystem.setVersion(version2.label)
+
     readDataset[Event](new URI(path))
       .collect() should contain theSameElementsAs List(
       Event("201", "C", Date.valueOf("2019-01-15")),
@@ -151,7 +153,7 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
   }
 
   "Inserting multiple records into the same partition" should "write the correct data to the filesystem" in {
-    spark.sparkContext.hadoopConfiguration.set("fs.versioned.baseFS", "file")
+    VersionedFileSystem.setUnderlyingScheme("file")
 
     val eventsTable =
       TableDefinition(TableName(schema, "events"), tableUri, PartitionSchema(List(PartitionColumn("date"))))
@@ -206,7 +208,7 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
   "Inserting a partitioned dataset" should "write the data to the versioned partitions and commit the new versions" in {
 
-    spark.sparkContext.hadoopConfiguration.set("fs.versioned.baseFS", "file")
+    VersionedFileSystem.setUnderlyingScheme("file")
 
     val eventsTable =
       TableDefinition(TableName(schema, "events"), tableUri, PartitionSchema(List(PartitionColumn("date"))))

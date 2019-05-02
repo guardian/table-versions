@@ -12,23 +12,19 @@ class VersionedFileSystemSparkSpec extends FlatSpec with Matchers with SparkHive
   "VersionedFileSystem" should "write partitions with a version suffix" in {
     import spark.implicits._
 
-    spark.sparkContext.hadoopConfiguration.set("fs.versioned.baseFS", "file")
-    spark.sparkContext.hadoopConfiguration.set("fs.versioned.version", "version1")
+    VersionedFileSystem.setUnderlyingScheme("file")
+    VersionedFileSystem.setVersion("version1")
 
     val path = tableUri.resolve(s"table/").toString.replace("file:", "versioned://")
 
-    val partitionsValues =
+    VersionedFileSystem.setPartitionMappings(
       List(
         Partition(ColumnValue(PartitionColumn("date"), "2019-01-01"), ColumnValue(PartitionColumn("hour"), "01")),
         Partition(ColumnValue(PartitionColumn("date"), "2019-01-01"), ColumnValue(PartitionColumn("hour"), "02")),
         Partition(ColumnValue(PartitionColumn("date"), "2019-01-01"), ColumnValue(PartitionColumn("hour"), "03")),
         Partition(ColumnValue(PartitionColumn("date"), "2019-01-01"), ColumnValue(PartitionColumn("hour"), "04")),
         Partition(ColumnValue(PartitionColumn("date"), "2019-01-01"), ColumnValue(PartitionColumn("hour"), "05"))
-      )
-
-    VersionedFileSystem.partitionMappings(partitionsValues) foreach {
-      case (k, v) => spark.sparkContext.hadoopConfiguration.set(k, v)
-    }
+      ))
 
     List(TestRow(1, "2019-01-01", "01"),
          TestRow(2, "2019-01-01", "02"),

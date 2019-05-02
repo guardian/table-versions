@@ -9,7 +9,7 @@ import com.gu.tableversions.core.Partition.PartitionColumn
 import com.gu.tableversions.core.TableVersions._
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore
-import com.gu.tableversions.spark.{SparkHiveMetastore, SparkHiveSuite}
+import com.gu.tableversions.spark.{SparkHiveMetastore, SparkHiveSuite, VersionedFileSystem}
 import org.scalatest.{FlatSpec, Matchers}
 
 /**
@@ -44,7 +44,7 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
     implicit val tableVersions: TableVersions[IO] = InMemoryTableVersions[IO].unsafeRunSync()
     implicit val metastore: Metastore[IO] = new SparkHiveMetastore[IO]()
 
-    spark.sparkContext.hadoopConfiguration.set("fs.versioned.baseFS", "file")
+    VersionedFileSystem.setUnderlyingScheme("file")
 
     val loader = new TableLoader[Pageview](table, ddl, isSnapshot = false)
 

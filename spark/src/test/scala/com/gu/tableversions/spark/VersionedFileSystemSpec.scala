@@ -10,12 +10,11 @@ import org.scalatest.{FlatSpec, Matchers}
 class VersionedFileSystemSpec extends FlatSpec with Matchers {
 
   "partitionMappings" should "produce configuration entries for each partition" in {
-
-    val m =
+    val partitions =
       List(Partition(ColumnValue(PartitionColumn("date"), "2019-01-01"), ColumnValue(PartitionColumn("hour"), "01")))
 
-    VersionedFileSystem.partitionMappings(m) shouldBe Map(
-      "versioned__date=2019-01-01/hour=01" -> "date=2019-01-01/hour=01")
+    VersionedFileSystem.partitionMappings(partitions) shouldBe Map(
+      s"${VersionedFileSystem.ConfigKeys.partitionMappingPrefix}.date=2019-01-01/hour=01" -> "date=2019-01-01/hour=01")
 
   }
 
