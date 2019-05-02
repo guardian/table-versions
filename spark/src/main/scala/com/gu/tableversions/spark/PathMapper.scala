@@ -4,8 +4,8 @@ import java.net.URI
 
 import org.apache.hadoop.fs.Path
 
-// Map paths between one "outer" FileSystem and an underlying one
-// e.g. by changing the schema or appending version directories
+// Map paths between one "outer" FileSystem (e.g. a ProxyFileSystem) and an underlying one.
+// For example, by changing the schema, or appending version directories.
 trait PathMapper {
 
   def forUnderlying(path: Path): Path

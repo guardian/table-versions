@@ -10,6 +10,7 @@ import com.gu.tableversions.core.{Partition, Version}
   * Encodes the mapping between version numbers and storage paths.
   */
 object VersionPaths {
+
   /**
     * @return the fully resolved paths for each partitions, derived from the table location and version
     */
