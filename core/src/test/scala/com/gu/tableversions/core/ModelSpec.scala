@@ -1,12 +1,9 @@
 package com.gu.tableversions.core
 
 import java.net.URI
-import java.time.LocalDateTime
-import java.util.UUID
 
 import com.gu.tableversions.core.Partition.PartitionColumn
 import org.scalatest.{EitherValues, FlatSpec, Matchers}
-import cats.implicits._
 
 class ModelSpec extends FlatSpec with Matchers with EitherValues {
 
@@ -30,5 +27,4 @@ class ModelSpec extends FlatSpec with Matchers with EitherValues {
     partition.resolvePath(tableLocation) shouldBe new URI(
       "s3://bucket/data/event_date=2019-01-20/processed_date=2019-01-21/")
   }
-
 }
