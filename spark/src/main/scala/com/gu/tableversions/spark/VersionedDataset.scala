@@ -37,11 +37,11 @@ object VersionedDataset {
 
   }
 
-  def versionedInsertDatasetIntoTable[T](
-      dataset: Dataset[T],
-      table: TableDefinition,
-      userId: UserId,
-      message: String)(
+  /**
+    * Keep default (public) scope. It was `private` before and failed at Runtime (yet compiled...).
+    * Have not tried with other scopes.
+    */
+  def versionedInsertDatasetIntoTable[T](dataset: Dataset[T], table: TableDefinition, userId: UserId, message: String)(
       implicit tableVersions: TableVersions[IO],
       metastore: Metastore[IO],
       generateVersion: IO[Version]): IO[(TableVersion, TableChanges)] = {
