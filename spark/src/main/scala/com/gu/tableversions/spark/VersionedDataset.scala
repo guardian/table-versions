@@ -20,8 +20,7 @@ object VersionedDataset {
 
   implicit class DatasetOps[T](val delegate: Dataset[T])(
       implicit tableVersions: TableVersions[IO],
-      metastore: Metastore[IO],
-      generateVersion: IO[Version]) {
+      metastore: Metastore[IO]) {
 
     /**
       * Insert the dataset into the given versioned table.
@@ -45,20 +44,15 @@ object VersionedDataset {
       userId: UserId,
       message: String)(
       implicit tableVersions: TableVersions[IO],
-      metastore: Metastore[IO],
-      generateVersion: IO[Version]): IO[(TableVersion, TableChanges)] = {
+      metastore: Metastore[IO]): IO[(TableVersion, TableChanges)] = {
 
     def writePartitionedDataset(version: Version): IO[List[TableOperation]] =
       for {
         // Find the partition values in the given dataset
         datasetPartitions <- IO(VersionedDataset.partitionValues(dataset, table.partitionSchema)(dataset.sparkSession))
 
-        // Resolve the path that each partition should be written to, based on their version
-        partitionPaths = VersionPaths.resolveVersionedPartitionPaths(datasetPartitions, version, table.location)
-
         // Write Spark dataset to the versioned path
-        _ <- IO(
-          VersionedDataset.writeVersionedPartitions(dataset, table, version, partitionPaths)(dataset.sparkSession))
+        _ <- IO(VersionedDataset.writeVersionedPartitions(dataset, table)(dataset.sparkSession))
 
       } yield datasetPartitions.map(partition => AddPartitionVersion(partition, version))
 
@@ -69,7 +63,12 @@ object VersionedDataset {
 
     for {
       // Get next version to use for all partitions
-      newVersion <- generateVersion
+      versionStr <- IO.fromEither(
+        Either.fromOption(
+          Option(dataset.sparkSession.sparkContext.hadoopConfiguration.get(VersionedFileSystem.ConfigKeys.version)),
+          new Exception(s"Version property (${VersionedFileSystem.ConfigKeys.version}) not set")
+        ))
+      newVersion <- IO.fromEither(Version.parse(versionStr))
 
       operations <- if (table.isSnapshot) writeSnapshotDataset(newVersion) else writePartitionedDataset(newVersion)
 
@@ -118,14 +117,8 @@ object VersionedDataset {
   /**
     * Write the given partitioned dataset, storing each partition in the associated path.
     */
-  private[spark] def writeVersionedPartitions[T](
-      dataset: Dataset[T],
-      table: TableDefinition,
-      version: Version,
-      partitionPaths: Map[Partition, URI])(implicit spark: SparkSession): Unit = {
-
-    VersionedFileSystem.setVersion(version.label)
-    VersionedFileSystem.setPartitionMappings(partitionPaths.keys.toList)
+  private[spark] def writeVersionedPartitions[T](dataset: Dataset[T], table: TableDefinition)(
+      implicit spark: SparkSession): Unit = {
 
     val partitions = table.partitionSchema.columns.map(_.name)
 

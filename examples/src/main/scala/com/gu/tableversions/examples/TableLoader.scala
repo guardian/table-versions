@@ -7,6 +7,7 @@ import com.gu.tableversions.core.TableVersions.{UpdateMessage, UserId}
 import com.gu.tableversions.core.{TableDefinition, TableVersions, Version}
 import com.gu.tableversions.metastore.Metastore
 import com.gu.tableversions.spark.VersionedDataset
+import com.gu.tableversions.spark.VersionedFileSystem.ConfigKeys
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.{Dataset, SparkSession}
 
@@ -35,8 +36,10 @@ class TableLoader[T <: Product: TypeTag](table: TableDefinition, createTableDdl:
     spark.table(table.name.fullyQualifiedName).as[T]
 
   def insert(dataset: Dataset[T], userId: UserId, message: String): Unit = {
-    import Version._
     import VersionedDataset._
+
+    // Update the current version to write
+    setVersion(Version.generateVersion.unsafeRunSync())
 
     val (latestVersion, metastoreChanges) = dataset.versionedInsertInto(table, userId, message)
 
@@ -55,5 +58,8 @@ class TableLoader[T <: Product: TypeTag](table: TableDefinition, createTableDdl:
 
     checkout.unsafeRunSync()
   }
+
+  private def setVersion(version: Version)(implicit spark: SparkSession): Unit =
+    spark.sparkContext.hadoopConfiguration.set(ConfigKeys.version, version.label)
 
 }

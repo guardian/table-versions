@@ -2,6 +2,7 @@ package com.gu.tableversions.spark
 
 import java.net.URI
 
+import com.gu.tableversions.core.Version
 import org.apache.hadoop.fs.Path
 
 // Map paths between one "outer" FileSystem (e.g. a ProxyFileSystem) and an underlying one.
@@ -13,7 +14,7 @@ trait PathMapper {
   def fromUnderlying(path: Path): Path
 }
 
-class VersionedPathMapper(underlyingFsScheme: String, partitionMappings: Map[String, String]) extends PathMapper {
+class VersionedPathMapper(underlyingFsScheme: String, version: Version) extends PathMapper {
 
   // convert a path with a "versioned" scheme to one suitable for the underlying FileSystem:
   // - replace the versioned schema with the base FS
@@ -22,7 +23,29 @@ class VersionedPathMapper(underlyingFsScheme: String, partitionMappings: Map[Str
     assert(path.toUri.getScheme == VersionedFileSystem.scheme,
            s"Path provided to `forUnderlying` ($path) not in the ${VersionedFileSystem.scheme} scheme")
 
-    appendVersion(setUnderlyingScheme(path))
+    // Split path into folders
+    // Right to left:
+    // Find thing that looks like partition
+    // Insert version after this
+
+    val parts = path.toUri.getSchemeSpecificPart.split("/")
+    val (afterLastPartition, upToLastPartitionFolder) = parts.reverse.span(part => !isPartitionFolder(part))
+    val convertedPath =
+      if (upToLastPartitionFolder.isEmpty)
+        path
+      else
+        new Path((afterLastPartition ++ Seq(version.label) ++ upToLastPartitionFolder).reverse.mkString("/"))
+
+    val result = setScheme(underlyingFsScheme, convertedPath)
+    // TODO: Remove this debug output
+    println(s"${Thread.currentThread().getId}: ${callingMethod()} converted forUnderlying from $path to $result")
+    result
+  }
+
+  def callingMethod(): String = {
+    val stacktrace = Thread.currentThread.getStackTrace.toList
+    val e = stacktrace(3)
+    e.getMethodName
   }
 
   // convert a path from the underlying FileSystem to one in the "versioned" scheme:
@@ -32,45 +55,22 @@ class VersionedPathMapper(underlyingFsScheme: String, partitionMappings: Map[Str
     assert(path.toUri.getScheme == underlyingFsScheme,
            s"Path provided to `fromUnderlying` ($path) not in the underlying $underlyingFsScheme scheme")
 
-    val pathWithoutVersionDirectory = partitionMappings
-      .find {
-        case (_, versionedPartition) =>
-          path.toString.contains(versionedPartition)
-      }
-      .map {
-        case (partition, versionedPartition) =>
-          new Path(path.toString.replace(versionedPartition, partition))
-      }
-      .getOrElse(path)
+    val parts = path.toUri.getSchemeSpecificPart.split("/")
+    val (afterLastPartition, upToLastPartitionFolder) = parts.reverse.span(part => !isPartitionFolder(part))
+    val convertedPath =
+      if (upToLastPartitionFolder.isEmpty)
+        path
+      else new Path((afterLastPartition.dropRight(1) ++ upToLastPartitionFolder).reverse.mkString("/"))
 
-    setVersionedScheme(pathWithoutVersionDirectory)
+    val result = setScheme(VersionedFileSystem.scheme, convertedPath)
+    // TODO: Remove this debug output
+    println(s"${Thread.currentThread().getId}: ${callingMethod()} converted fromUnderlying from $path to $result")
+    result
   }
 
-  private def appendVersion(path: Path): Path = {
-    val uri = path.toUri
-
-    partitionMappings
-      .find {
-        case (partition, versionedPartition) =>
-          uri.getSchemeSpecificPart.contains(partition) && !uri.getSchemeSpecificPart.contains(versionedPartition)
-      }
-      .map {
-        case (partition, versionedPartition) =>
-          new Path(path.toString.replace(normalize(partition), normalize(versionedPartition)))
-      }
-      .getOrElse(path)
-  }
-
-  private def normalize(partition: String): String =
-    if (partition.startsWith("/")) partition else s"/$partition"
+  private def isPartitionFolder(path: String): Boolean = path.matches("""[^\=]+\=[^\=]+""")
 
   private def setScheme(scheme: String, path: Path): Path =
     new Path(new URI(s"$scheme:${path.toUri.getSchemeSpecificPart}"))
-
-  private def setUnderlyingScheme(path: Path): Path =
-    setScheme(underlyingFsScheme, path)
-
-  private def setVersionedScheme(path: Path): Path =
-    setScheme(VersionedFileSystem.scheme, path)
 
 }

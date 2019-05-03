@@ -80,7 +80,7 @@ trait SparkHiveSuite extends BeforeAndAfterAll with BeforeAndAfterEach with Lazy
       .set("fs.versioned.impl", "com.gu.tableversions.spark.VersionedFileSystem")
       .set(VersionedFileSystem.ConfigKeys.disableCache, "true")
 
-    jobConfig.foreach { case (key, value) => conf.set(key, value) }
+    (jobConfig ++ customConfig).foreach { case (key, value) => conf.set(key, value) }
 
     SparkSession
       .builder()
@@ -88,6 +88,8 @@ trait SparkHiveSuite extends BeforeAndAfterAll with BeforeAndAfterEach with Lazy
       .enableHiveSupport()
       .getOrCreate()
   }
+
+  def customConfig: Map[String, String] = Map.empty
 
   implicit lazy val ss: SparkSession = spark
 
