@@ -32,14 +32,12 @@ object VersionedDataset {
       * @return a tuple containing the updated table version information, and a list of the changes that were applied
       *         to the metastore.
       */
-    def versionedInsertInto(table: TableDefinition, userId: UserId, message: String)(
-        implicit tableVersions: TableVersions[IO],
-        metastore: Metastore[IO]): (TableVersion, TableChanges) =
+    def versionedInsertInto(table: TableDefinition, userId: UserId, message: String): (TableVersion, TableChanges) =
       versionedInsertDatasetIntoTable(delegate, table, userId, message).unsafeRunSync()
 
   }
 
-  private def versionedInsertDatasetIntoTable[T](
+  def versionedInsertDatasetIntoTable[T](
       dataset: Dataset[T],
       table: TableDefinition,
       userId: UserId,
