@@ -1,6 +1,7 @@
 package com.gu.tableversions.spark
 
-import com.gu.tableversions.core.Version
+import com.gu.tableversions.core.{Partition, Version}
+import com.gu.tableversions.core.Partition.{ColumnValue, PartitionColumn}
 import org.apache.spark.sql.SaveMode
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -8,11 +9,22 @@ class VersionedFileSystemSparkSpec extends FlatSpec with Matchers with SparkHive
 
   spark.sparkContext.setLogLevel("ERROR")
 
-  override def customConfig: Map[String, String] =
-    VersionedFileSystem.sparkConfig("file", Version.generateVersion.unsafeRunSync())
-
-  "VersionedFileSystem" should "write partitions with a version suffix" ignore { // TODO: make it pass!
+  "VersionedFileSystem" should "write partitions with a version suffix" in {
     import spark.implicits._
+
+    val version = Version.generateVersion.unsafeRunSync()
+
+    VersionedFileSystem.setUnderlyingScheme("file")
+
+    VersionedFileSystem.writeConfig(
+      Map(
+        Partition(ColumnValue(PartitionColumn("date"), "2019-01-01"), ColumnValue(PartitionColumn("hour"), "01")) -> version,
+        Partition(ColumnValue(PartitionColumn("date"), "2019-01-01"), ColumnValue(PartitionColumn("hour"), "02")) -> version,
+        Partition(ColumnValue(PartitionColumn("date"), "2019-01-01"), ColumnValue(PartitionColumn("hour"), "03")) -> version,
+        Partition(ColumnValue(PartitionColumn("date"), "2019-01-01"), ColumnValue(PartitionColumn("hour"), "04")) -> version,
+        Partition(ColumnValue(PartitionColumn("date"), "2019-01-01"), ColumnValue(PartitionColumn("hour"), "05")) -> version
+      )
+    )
 
     val path = tableUri.resolve(s"table/").toString.replace("file:", "versioned://")
 

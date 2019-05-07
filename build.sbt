@@ -58,15 +58,19 @@ lazy val `table-versions-cli` = project
   .settings(commonSettings)
   .dependsOn(`table-versions-core`, `table-versions-metastore`)
 
+val circeVersion = "0.10.0"
+
 lazy val `table-versions-spark` = project
   .in(file("spark"))
   .settings(commonSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "commons-io" % "commons-io" % "2.6",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
-      "log4j" % "log4j" % "1.2.17"
-    ) ++ sparkDependencies)
+  .settings(libraryDependencies ++= Seq(
+    "io.circe" %% "circe-core" % circeVersion,
+    "io.circe" %% "circe-generic" % circeVersion,
+    "io.circe" %% "circe-parser" % circeVersion,
+    "commons-io" % "commons-io" % "2.6",
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
+    "log4j" % "log4j" % "1.2.17"
+  ) ++ sparkDependencies)
   .settings(parallelExecution in Test := false)
   .settings(fork in Test := true)
   .dependsOn(`table-versions-core`, `table-versions-metastore` % "compile->compile;test->test")
