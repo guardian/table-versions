@@ -1,16 +1,25 @@
 package com.gu.tableversions.spark
 
+import com.gu.tableversions.core.Version
 import org.apache.hadoop.fs.Path
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FreeSpec, Matchers}
 
 class VersionedPathMapperSpec extends FreeSpec with Matchers with TableDrivenPropertyChecks {
 
-  "VersionedPathModifier" - {
+  "VersionedPathMapper" - {
+    val v1 = Version.generateVersion.unsafeRunSync()
+    val v2 = Version.generateVersion.unsafeRunSync()
+    val v3 = Version.generateVersion.unsafeRunSync()
+
     val partitionVersions: Map[String, String] = Map(
-      "date=2019-01-01" -> "version1",
-      "date=2019-01-02" -> "version2",
-      "date=2019-01-03" -> "version3"
+      "date=2019-01-01" -> v1.label,
+      "date=2019-01-02" -> v2.label,
+      "date=2019-01-03" -> v3.label,
+      "date=2019-01-15" -> v1.label,
+      "received_date=2019-01-03/processed_date=2019-01-04" -> v2.label,
+      "year=2019/month=jan/day=01" -> v2.label,
+      "xyz_FOO-baz_42=42/bar=2019-01-03" -> v1.label
     )
 
     val modifier = new VersionedPathMapper("s3", partitionVersions)
@@ -18,19 +27,32 @@ class VersionedPathMapperSpec extends FreeSpec with Matchers with TableDrivenPro
     "for paths defined in the mapping" - {
       // @formatter:off
       val partitionMappingTable = Table(
-        ("URI under versioned scheme", "URI under S3"),
-        ("versioned://some-bucket/date=2019-01-01", "s3://some-bucket/date=2019-01-01/version1"),
-        ("versioned://some-bucket/date=2019-01-02", "s3://some-bucket/date=2019-01-02/version2"),
-        ("versioned://some-bucket/date=2019-01-03", "s3://some-bucket/date=2019-01-03/version3"),
+        ("Unversioned partition", "Versioned partition"),
 
-        ("versioned://some-bucket/date=2019-01-01/file.parquet", "s3://some-bucket/date=2019-01-01/version1/file.parquet"),
+        // Single partition column
+        ("versioned://some-bucket/date=2019-01-01", s"s3://some-bucket/date=2019-01-01/${v1.label}"),
+        ("versioned://some-bucket/date=2019-01-01/", s"s3://some-bucket/date=2019-01-01/${v1.label}/"),
+        ("versioned://some-bucket/some/path/to/table/date=2019-01-01", s"s3://some-bucket/some/path/to/table/date=2019-01-01/${v1.label}"),
+        ("versioned://some-bucket/date=2019-01-03", s"s3://some-bucket/date=2019-01-03/${v3.label}"),
 
-        ("versioned://some-bucket/date=2019-01-03/some/long/directory/path/file.parquet", "s3://some-bucket/date=2019-01-03/version3/some/long/directory/path/file.parquet"),
+        // Multiple partition columns
+        ("versioned://some-bucket/received_date=2019-01-03/processed_date=2019-01-04", s"s3://some-bucket/received_date=2019-01-03/processed_date=2019-01-04/${v2.label}"),
+        ("versioned://some-bucket/year=2019/month=jan/day=01", s"s3://some-bucket/year=2019/month=jan/day=01/${v2.label}"),
+        ("versioned://some-bucket/xyz_FOO-baz_42=42/bar=2019-01-03", s"s3://some-bucket/xyz_FOO-baz_42=42/bar=2019-01-03/${v1.label}"),
 
-        ("versioned://some-bucket/foo/date=2019-01-02", "s3://some-bucket/foo/date=2019-01-02/version2"),
+        // Including file name
+        ("versioned://some-bucket/date=2019-01-01/file.parquet", s"s3://some-bucket/date=2019-01-01/${v1.label}/file.parquet"),
+        ("versioned://some-bucket/date=2019-01-03/some/long/directory/path/file.parquet", s"s3://some-bucket/date=2019-01-03/${v3.label}/some/long/directory/path/file.parquet"),
 
-        ("versioned://some-bucket/date=2019-01-02/x_date=2019-01-02", "s3://some-bucket/date=2019-01-02/version2/x_date=2019-01-02"),
-        ("versioned://some-bucket/x_date=2019-01-02/date=2019-01-02", "s3://some-bucket/x_date=2019-01-02/date=2019-01-02/version2")
+        // Nested directory inside versioned partition
+        ("versioned://some-bucket/date=2019-01-01/temp/file.parquet", s"s3://some-bucket/date=2019-01-01/${v1.label}/temp/file.parquet"),
+
+        // Something that looks like a partition folder in the root part of the table
+        ("versioned://some-bucket/some=yes/path/to/table/date=2019-01-01", s"s3://some-bucket/some=yes/path/to/table/date=2019-01-01/${v1.label}"),
+
+        // Various valid syntax examples
+        ("versioned:/some-bucket/dir/date=2019-01-01", s"s3:/some-bucket/dir/date=2019-01-01/${v1.label}"),
+        ("versioned:///some-bucket/dir/date=2019-01-01", s"s3:///some-bucket/dir/date=2019-01-01/${v1.label}")
       )
       // @formatter:on
 

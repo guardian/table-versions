@@ -28,44 +28,6 @@ class SparkHiveMetastoreSpec extends FlatSpec with Matchers with SparkHiveSuite 
                                                        initPartitionedTable(partitionedTable),
                                                        partitionedTable.name)
 
-  //
-  // Tests specific to the Spark/Hive implementation
-  //
-
-  "Parsing a valid partition string" should "produce the expected values" in {
-    val testData = Table(
-      ("partitionStr", "expected"),
-      ("date=2019-01-31", Partition(ColumnValue(PartitionColumn("date"), "2019-01-31"))),
-      ("event_date=2019-01-30/processed_date=2019-01-31",
-       Partition(ColumnValue(PartitionColumn("event_date"), "2019-01-30"),
-                 ColumnValue(PartitionColumn("processed_date"), "2019-01-31"))),
-      ("year=2019/month=01/day=31",
-       Partition(ColumnValue(PartitionColumn("year"), "2019"),
-                 ColumnValue(PartitionColumn("month"), "01"),
-                 ColumnValue(PartitionColumn("day"), "31")))
-    )
-
-    forAll(testData) { (partitionStr: String, expected: Partition) =>
-      SparkHiveMetastore.parsePartition(partitionStr) shouldBe expected
-    }
-  }
-
-  "Parsing an invalid partition string" should "throw an exception" in {
-    // format: off
-    val invalidPartitionStrings =
-      Table(
-        "partitionString",
-        "invalid partition string",
-        "invalid partition string=42",
-        //"/",
-        "")
-    // format: on
-
-    forAll(invalidPartitionStrings) { partitionStr =>
-      an[Exception] should be thrownBy SparkHiveMetastore.parsePartition(partitionStr)
-    }
-  }
-
   "Rendering a partition" should "produce a valid Hive partition expression" in {
 
     val testData = Table(

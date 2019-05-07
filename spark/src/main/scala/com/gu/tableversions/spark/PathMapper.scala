@@ -2,6 +2,7 @@ package com.gu.tableversions.spark
 
 import java.net.URI
 
+import com.gu.tableversions.spark.VersionedPathMapper.setScheme
 import org.apache.hadoop.fs.Path
 
 // Map paths between one "outer" FileSystem (e.g. a ProxyFileSystem) and an underlying one.
@@ -35,7 +36,7 @@ class VersionedPathMapper(underlyingFsScheme: String, partitionVersions: Map[Str
     val pathWithoutVersionDirectory = partitionVersions
       .find {
         case (partition, _) =>
-          path.toString.contains(partition)
+          path.toString.contains(VersionedPathMapper.normalize(partition))
       }
       .map {
         case (_, version) =>
@@ -48,29 +49,37 @@ class VersionedPathMapper(underlyingFsScheme: String, partitionVersions: Map[Str
 
   private def appendVersion(path: Path): Path = {
     val uri = path.toUri
+    val uriSchemeSpecificPart = uri.getSchemeSpecificPart
 
-    partitionVersions
+    val versionForPath = partitionVersions
       .find {
         case (partition, version) =>
-          uri.getSchemeSpecificPart.contains(partition) && !uri.getSchemeSpecificPart.contains(version)
+          uriSchemeSpecificPart.contains(VersionedPathMapper.normalize(partition)) && !uriSchemeSpecificPart.contains(
+            version)
       }
+
+    versionForPath
       .map {
-        case (_, version) =>
-          new Path(s"${path.toString}/$version")
+        case (partition, version) =>
+          new Path(
+            path.toString.replace(VersionedPathMapper.normalize(partition),
+                                  s"${VersionedPathMapper.normalize(partition)}/$version"))
       }
       .getOrElse(path)
   }
-
-  private def normalize(partition: String): String =
-    if (partition.startsWith("/")) partition else s"/$partition"
-
-  private def setScheme(scheme: String, path: Path): Path =
-    new Path(new URI(s"$scheme:${path.toUri.getSchemeSpecificPart}"))
 
   private def setUnderlyingScheme(path: Path): Path =
     setScheme(underlyingFsScheme, path)
 
   private def setVersionedScheme(path: Path): Path =
     setScheme(VersionedFileSystem.scheme, path)
+}
 
+object VersionedPathMapper {
+
+  def normalize(partition: String): String =
+    if (partition.startsWith("/")) partition else s"/$partition"
+
+  def setScheme(scheme: String, path: Path): Path =
+    new Path(new URI(s"$scheme:${path.toUri.getSchemeSpecificPart}"))
 }

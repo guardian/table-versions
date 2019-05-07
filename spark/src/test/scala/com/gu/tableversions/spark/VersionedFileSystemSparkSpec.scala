@@ -1,7 +1,8 @@
 package com.gu.tableversions.spark
 
-import com.gu.tableversions.core.{Partition, Version}
 import com.gu.tableversions.core.Partition.{ColumnValue, PartitionColumn}
+import com.gu.tableversions.core.{Partition, Version}
+import com.gu.tableversions.spark.VersionedFileSystem.VersionedFileSystemConfig
 import org.apache.spark.sql.SaveMode
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -14,9 +15,7 @@ class VersionedFileSystemSparkSpec extends FlatSpec with Matchers with SparkHive
 
     val version = Version.generateVersion.unsafeRunSync()
 
-    VersionedFileSystem.setUnderlyingScheme("file")
-
-    VersionedFileSystem.writeConfig(
+    val vfsConfig = VersionedFileSystemConfig(
       Map(
         Partition(ColumnValue(PartitionColumn("date"), "2019-01-01"), ColumnValue(PartitionColumn("hour"), "01")) -> version,
         Partition(ColumnValue(PartitionColumn("date"), "2019-01-01"), ColumnValue(PartitionColumn("hour"), "02")) -> version,
@@ -27,6 +26,10 @@ class VersionedFileSystemSparkSpec extends FlatSpec with Matchers with SparkHive
     )
 
     val path = tableUri.resolve(s"table/").toString.replace("file:", "versioned://")
+
+    VersionedFileSystem.setUnderlyingScheme("file")
+    VersionedFileSystem.setConfigDirectory(tableDir.toUri)
+    VersionedFileSystem.writeConfig(vfsConfig, spark.sparkContext.hadoopConfiguration)
 
     List(TestRow(1, "2019-01-01", "01"),
          TestRow(2, "2019-01-01", "02"),

@@ -44,6 +44,7 @@ class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHi
     import spark.implicits._
     implicit val tableVersions: TableVersions[IO] = InMemoryTableVersions[IO].unsafeRunSync()
     implicit val metastore: Metastore[IO] = new SparkHiveMetastore[IO]()
+    implicit val versionGenerator: IO[Version] = Version.generateVersion
 
     val loader = new TableLoader[Pageview](table, ddl, isSnapshot = false)
 

@@ -55,6 +55,11 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
   "Writing a dataset with multiple partitions" should "store the data for each partition in a versioned folder for the partition" in {
 
+    import spark.implicits._
+
+    val path = tableUri.resolve(s"table").toString.replace("file:", "versioned://")
+    val table = TableDefinition(TableName("dev", "test"), tableUri, PartitionSchema(List(PartitionColumn("date"))))
+    VersionedFileSystem.setConfigDirectory(tableDir.toUri)
     VersionedFileSystem.setUnderlyingScheme("file")
 
     val eventsGroup1 = List(
@@ -62,19 +67,25 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
       Event("102", "B", Date.valueOf("2019-01-15")),
       Event("103", "A", Date.valueOf("2019-01-16")),
       Event("104", "B", Date.valueOf("2019-01-18"))
-    ).toDS
-
-    val eventsGroup2 = List(
-      Event("201", "C", Date.valueOf("2019-01-15")),
-      Event("202", "D", Date.valueOf("2019-01-15")),
-      Event("203", "C", Date.valueOf("2019-01-16")),
-      Event("204", "D", Date.valueOf("2019-01-18"))
-    ).toDS()
+    )
 
     val partitionPathsV1: Map[Partition, Version] = Map(
       Partition(PartitionColumn("date"), "2019-01-15") -> version1,
       Partition(PartitionColumn("date"), "2019-01-16") -> version1,
       Partition(PartitionColumn("date"), "2019-01-18") -> version1
+    )
+
+    VersionedDataset.writeVersionedPartitions(eventsGroup1.toDS, table, partitionPathsV1)
+
+    readDataset[Event](new URI(path))
+      .collect() should contain theSameElementsAs eventsGroup1
+
+    // Now write some new data to the same partitions
+    val eventsGroup2 = List(
+      Event("201", "C", Date.valueOf("2019-01-15")),
+      Event("202", "D", Date.valueOf("2019-01-15")),
+      Event("203", "C", Date.valueOf("2019-01-16")),
+      Event("204", "D", Date.valueOf("2019-01-18"))
     )
 
     val partitionPathsV2: Map[Partition, Version] = Map(
@@ -83,29 +94,10 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
       Partition(PartitionColumn("date"), "2019-01-18") -> version2
     )
 
-    val table = TableDefinition(TableName("dev", "test"), tableUri, PartitionSchema(List(PartitionColumn("date"))))
-
-    VersionedDataset.writeVersionedPartitions(eventsGroup1, table, partitionPathsV1)
-    VersionedDataset.writeVersionedPartitions(eventsGroup2, table, partitionPathsV2)
-
-    // Check that data was written to the right place.
-
-    val path = tableUri.resolve(s"table").toString.replace("file:", "versioned://")
-    readDataset[Event](new URI(path))
-      .collect() should contain theSameElementsAs List(
-      Event("101", "A", Date.valueOf("2019-01-15")),
-      Event("102", "B", Date.valueOf("2019-01-15")),
-      Event("103", "A", Date.valueOf("2019-01-16")),
-      Event("104", "B", Date.valueOf("2019-01-18"))
-    )
+    VersionedDataset.writeVersionedPartitions(eventsGroup2.toDS(), table, partitionPathsV2)
 
     readDataset[Event](new URI(path))
-      .collect() should contain theSameElementsAs List(
-      Event("201", "C", Date.valueOf("2019-01-15")),
-      Event("202", "D", Date.valueOf("2019-01-15")),
-      Event("203", "C", Date.valueOf("2019-01-16")),
-      Event("204", "D", Date.valueOf("2019-01-18"))
-    )
+      .collect() should contain theSameElementsAs eventsGroup2
   }
 
   "Inserting a snapshot dataset" should "write the data to the versioned location and commit the new version" in {
@@ -153,6 +145,7 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
   }
 
   "Inserting multiple records into the same partition" should "write the correct data to the filesystem" in {
+    VersionedFileSystem.setConfigDirectory(tableDir.toUri)
     VersionedFileSystem.setUnderlyingScheme("file")
 
     val eventsTable =

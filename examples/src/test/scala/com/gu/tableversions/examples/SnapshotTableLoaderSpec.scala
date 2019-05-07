@@ -37,6 +37,7 @@ class SnapshotTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite
 
     implicit val tableVersions: TableVersions[IO] = InMemoryTableVersions[IO].unsafeRunSync()
     implicit val metastore: Metastore[IO] = new SparkHiveMetastore[IO]()
+    implicit val versionGenerator: IO[Version] = Version.generateVersion
 
     val userId = UserId("test user")
 

@@ -1,10 +1,20 @@
 package com.gu.tableversions.spark
 
-import java.net.URI
+import org.scalatest.prop.GeneratorDrivenPropertyChecks
+import org.scalatest.{EitherValues, FreeSpec, Matchers}
 
-import com.gu.tableversions.core.Partition
-import com.gu.tableversions.core.Partition.{ColumnValue, PartitionColumn}
-import org.apache.hadoop.fs.Path
-import org.scalatest.{FlatSpec, Matchers}
+class VersionedFileSystemSpec
+    extends FreeSpec
+    with Matchers
+    with EitherValues
+    with GeneratorDrivenPropertyChecks
+    with Generators
+    with SparkHiveSuite {
 
-class VersionedFileSystemSpec extends FlatSpec with Matchers {}
+  "Written config files should be parsed successfully" in forAll(versionedFileSystemConfigGenerator) { conf =>
+    VersionedFileSystem.setConfigDirectory(tableUri)
+    VersionedFileSystem.writeConfig(conf, spark.sparkContext.hadoopConfiguration)
+    val read = VersionedFileSystem.readConfig(tableUri, spark.sparkContext.hadoopConfiguration)
+    read.right.value shouldBe conf
+  }
+}

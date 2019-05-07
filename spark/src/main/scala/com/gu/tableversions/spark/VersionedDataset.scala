@@ -124,8 +124,7 @@ object VersionedDataset {
       partitionVersions: Map[Partition, Version])(implicit spark: SparkSession): Unit = {
 
     VersionedFileSystem.writeConfig(VersionedFileSystemConfig(partitionVersions),
-                                    table.location.resolve(spark.sparkContext.applicationId),
-                                    spark.sparkContext.hadoopConfiguration)
+                                    dataset.sparkSession.sparkContext.hadoopConfiguration)
 
     val partitions = table.partitionSchema.columns.map(_.name)
 

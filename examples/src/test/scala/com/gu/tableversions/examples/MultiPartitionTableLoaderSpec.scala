@@ -22,11 +22,12 @@ class MultiPartitionTableLoaderSpec extends FlatSpec with Matchers with SparkHiv
 
   import MultiPartitionTableLoaderSpec._
 
-  "Writing multiple versions of a dataset with multiple partition columns" should "produce distinct partition versions" ignore { // TODO: make it pass!!
+  "Writing multiple versions of a dataset with multiple partition columns" should "produce distinct partition versions" in {
 
     import spark.implicits._
     implicit val tableVersions: TableVersions[IO] = InMemoryTableVersions[IO].unsafeRunSync()
     implicit val metastore: Metastore[IO] = new SparkHiveMetastore[IO]()
+    implicit val versionGenerator: IO[Version] = Version.generateVersion
 
     val table = TableDefinition(
       TableName(schema, "ad_impressions"),
