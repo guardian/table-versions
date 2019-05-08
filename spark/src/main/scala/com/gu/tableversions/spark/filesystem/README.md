@@ -30,3 +30,22 @@ fs.versioned.configDirectory=<the path where the partition version configuration
 
 Note that to provide these configuration settings via Spark config, you have to prefix the config keys with "spark.hadoop.".
 The method `VersionedFilesystem.sparkConfig` is a convenience method that will create the right configuration parameters for you.
+
+## Implementation notes
+
+### Configurating the underlying file system
+
+Currently, we only support selecting the underlying file system schema via a global setting.
+This means that a job using this code can only write to a single type of underlying storage.
+
+We did consider other approaches, for example encoding the underlying file system in the versioned URI,
+for example something like:
+
+  * `versioned://s3/foo/bar/baz`
+  * `versioned-s3//foo/bar/baz`
+  * `versioned://s3:0/foo/bar/baz`
+  * `versioned://s3@s3/foo/bar/baz`
+  * `versioned://versioned@s3/foo/bar/baz`
+
+We decided for now that these seem a bit clunky, hence we're only currently supporting a global setting. This may change in the future,
+if being able to configure this per path seems useful.
