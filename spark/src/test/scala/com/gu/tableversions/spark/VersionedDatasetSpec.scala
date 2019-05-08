@@ -14,12 +14,15 @@ import com.gu.tableversions.metastore.Metastore.TableOperation.{AddPartition, Up
 import com.gu.tableversions.spark.VersionedDataset._
 import com.gu.tableversions.spark.VersionedDatasetSpec.{Event, User}
 import com.gu.tableversions.spark.filesystem.VersionedFileSystem
+import com.gu.tableversions.spark.filesystem.VersionedFileSystem.ConfigKeys
 import org.apache.spark.sql.Dataset
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.reflect.runtime.universe.TypeTag
 
 class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
+
+  override def customConfig = Map(ConfigKeys.baseFS -> "file")
 
   import spark.implicits._
 
@@ -61,7 +64,6 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
     val path = tableUri.resolve(s"table").toString.replace("file:", "versioned://")
     val table = TableDefinition(TableName("dev", "test"), tableUri, PartitionSchema(List(PartitionColumn("date"))))
     VersionedFileSystem.setConfigDirectory(tableDir.toUri)
-    VersionedFileSystem.setUnderlyingScheme("file")
 
     val eventsGroup1 = List(
       Event("101", "A", Date.valueOf("2019-01-15")),
@@ -147,7 +149,6 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
   "Inserting multiple records into the same partition" should "write the correct data to the filesystem" in {
     VersionedFileSystem.setConfigDirectory(tableDir.toUri)
-    VersionedFileSystem.setUnderlyingScheme("file")
 
     val eventsTable =
       TableDefinition(TableName(schema, "events"), tableUri, PartitionSchema(List(PartitionColumn("date"))))
@@ -181,7 +182,7 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
     // Check that data was written correctly to the right place
     readDataset[Event](resolveTablePath(""))
-      .collect() should contain theSameElementsAs (events)
+      .collect() should contain theSameElementsAs events
 
     // Check that we performed the right version updates and returned the right results
     val expectedPartitionVersions = Map(
@@ -201,8 +202,6 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
   }
 
   "Inserting a partitioned dataset" should "write the data to the versioned partitions and commit the new versions" in {
-
-    VersionedFileSystem.setUnderlyingScheme("file")
 
     val eventsTable =
       TableDefinition(TableName(schema, "events"), tableUri, PartitionSchema(List(PartitionColumn("date"))))

@@ -84,12 +84,12 @@ object VersionedFileSystem extends LazyLogging {
     Encoder.encodeString.contramap(_.label)
 
   def writeConfig(config: VersionedFileSystemConfig, hadoopConfiguration: Configuration): Unit = {
-    val configDirectory = new URI(hadoopConfiguration.get(ConfigKeys.configDirectory))
-    val fs = FileSystem.get(configDirectory, hadoopConfiguration)
-    val configPath = new Path(configDirectory.resolve(configFilename))
-    logger.info(s"Writing ${config.partitionVersions.size} partition versions to path '$configPath'")
+    val configDirectoryPath = hadoopConfiguration.get(ConfigKeys.configDirectory)
+    val configFile = configFilename(new URI(configDirectoryPath))
+    logger.info(s"Writing config with ${config.partitionVersions.size} partition versions to file: $configFile")
 
-    val os = fs.create(configPath)
+    val fs = FileSystem.get(configFile, hadoopConfiguration)
+    val os = fs.create(new Path(configFile))
     try {
       val configJson = config.asJson
       val jsonBytes = configJson.noSpaces.getBytes(configEncoding)
@@ -100,12 +100,9 @@ object VersionedFileSystem extends LazyLogging {
     }
   }
 
-  def readConfig(
-      tableLocation: URI,
-      hadoopConfiguration: Configuration): Either[Throwable, VersionedFileSystemConfig] = {
-
-    val path = tableLocation.resolve(configFilename)
-    logger.info(s"Reading config from path '$path'")
+  def readConfig(configDir: URI, hadoopConfiguration: Configuration): Either[Throwable, VersionedFileSystemConfig] = {
+    val path = configFilename(configDir)
+    logger.info(s"Reading config from path: $path")
 
     val fs = FileSystem.get(path, hadoopConfiguration)
     for {
@@ -115,9 +112,15 @@ object VersionedFileSystem extends LazyLogging {
     } yield config
   }
 
-  def setConfigDirectory(path: URI)(implicit spark: SparkSession): Unit =
-    spark.sparkContext.hadoopConfiguration.set(ConfigKeys.configDirectory, path.toString)
+  def configFilename(configDir: URI): URI = {
+    val normalizedConfigDir: URI =
+      if (configDir.toString.endsWith("/")) configDir else new URI(configDir.toString + "/")
+    normalizedConfigDir.resolve(configFilename)
+  }
 
-  def setUnderlyingScheme(scheme: String)(implicit spark: SparkSession): Unit =
-    spark.sparkContext.hadoopConfiguration.set(ConfigKeys.baseFS, scheme)
+  def setConfigDirectory(path: URI)(implicit spark: SparkSession): Unit = {
+    logger.info(s"Setting config directory to path: $path")
+    spark.sparkContext.hadoopConfiguration.set(ConfigKeys.configDirectory, path.toString)
+  }
+
 }
