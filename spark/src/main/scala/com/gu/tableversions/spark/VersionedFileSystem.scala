@@ -6,6 +6,7 @@ import java.util.Objects
 
 import com.gu.tableversions.core.{Partition, Version}
 import com.gu.tableversions.spark.VersionedFileSystem.ConfigKeys
+import com.typesafe.scalalogging.LazyLogging
 import io.circe.parser._
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import org.apache.commons.io.IOUtils
@@ -13,7 +14,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql.SparkSession
 
-class VersionedFileSystem extends ProxyFileSystem {
+class VersionedFileSystem extends ProxyFileSystem with LazyLogging {
 
   override def initialize(path: URI, conf: Configuration): Unit = {
     val cacheDisabled = conf.getBoolean(ConfigKeys.disableCache, false)
@@ -24,30 +25,46 @@ class VersionedFileSystem extends ProxyFileSystem {
     require(Objects.nonNull(configDirectory), s"${ConfigKeys.configDirectory} not set in configuration")
     require(cacheDisabled, s"${ConfigKeys.disableCache} not set to true in configuration")
 
+    logger.info(s"Cache disabled = $cacheDisabled")
+    logger.info(s"Base filesystem scheme = $baseFsScheme")
+    logger.info(s"Config directory = $configDirectory")
+
     // When initialising the versioned filesystem we need to swap the versioned:// prefix
     // in the URI passed during initialisation to the base scheme.
     val baseURI = new URI(baseFsScheme, null, path.getSchemeSpecificPart, null, null)
 
     VersionedFileSystem.readConfig(new URI(configDirectory), conf) match {
-      case Right(config) => {
+      case Right(config) =>
         val pathMapper = new VersionedPathMapper(baseFsScheme, config.partitionVersions.map {
           case (p, v) => p.toString -> v.label
         })
 
         initialiseProxyFileSystem(baseURI, pathMapper, conf)
-      }
 
       case Left(e) => throw e
     }
   }
 }
 
-object VersionedFileSystem {
+object VersionedFileSystem extends LazyLogging {
+
+  val scheme = "versioned"
+  val configFilename = "_vfsconfig"
+  val configEncoding = "UTF-8"
+
+  object ConfigKeys {
+    val baseFS = "fs.versioned.baseFS"
+    val disableCache = "fs.versioned.impl.disable.cache"
+    val configDirectory = "fs.versioned.configDirectory"
+  }
+
 
   import cats.syntax.either._
   import io.circe.Decoder._
   import io.circe.generic.auto._
   import io.circe.syntax._
+
+  case class VersionedFileSystemConfig(partitionVersions: Map[Partition, Version])
 
   implicit def partitionKeyDecoder: KeyDecoder[Partition] =
     KeyDecoder.instance(s => Partition.parse(s).toOption)
@@ -59,12 +76,6 @@ object VersionedFileSystem {
     Either.catchNonFatal(Instant.parse(str)).leftMap(t => s"Unable to parse instant '$str': " + t.getMessage)
   }
 
-  case class VersionedFileSystemConfig(partitionVersions: Map[Partition, Version])
-
-  val scheme = "versioned"
-  val configFilename = "_vfsconfig"
-  val configEncoding = "UTF-8"
-
   implicit def partitionEncoder: KeyEncoder[Partition] =
     KeyEncoder.instance { partition =>
       partition.columnValues.map(cv => s"${cv.column.name}=${cv.value}").toList.mkString("/")
@@ -73,17 +84,13 @@ object VersionedFileSystem {
   implicit def versionEncoder: Encoder[Version] =
     Encoder.encodeString.contramap(_.label)
 
-  object ConfigKeys {
-    val baseFS = "fs.versioned.baseFS"
-    val disableCache = "fs.versioned.impl.disable.cache"
-    val configDirectory = "fs.versioned.configDirectory"
-  }
-
   def writeConfig(config: VersionedFileSystemConfig, hadoopConfiguration: Configuration): Unit = {
-    val tableLocation = new URI(hadoopConfiguration.get(ConfigKeys.configDirectory))
-    val fs = FileSystem.get(tableLocation, hadoopConfiguration)
-    val os = fs.create(new Path(tableLocation.resolve(configFilename)))
+    val configDirectory = new URI(hadoopConfiguration.get(ConfigKeys.configDirectory))
+    val fs = FileSystem.get(configDirectory, hadoopConfiguration)
+    val configPath = new Path(configDirectory.resolve(configFilename))
+    logger.info(s"Writing ${config.partitionVersions.size} partition versions to path '$configPath'")
 
+    val os = fs.create(configPath)
     try {
       val configJson = config.asJson
       val jsonBytes = configJson.noSpaces.getBytes(configEncoding)
@@ -97,9 +104,11 @@ object VersionedFileSystem {
   def readConfig(
       tableLocation: URI,
       hadoopConfiguration: Configuration): Either[Throwable, VersionedFileSystemConfig] = {
-    val path = tableLocation.resolve(configFilename)
-    val fs = FileSystem.get(path, hadoopConfiguration)
 
+    val path = tableLocation.resolve(configFilename)
+    logger.info(s"Reading config from path '$path'")
+
+    val fs = FileSystem.get(path, hadoopConfiguration)
     for {
       is <- Either.catchNonFatal(fs.open(new Path(path.resolve(VersionedFileSystem.configFilename))))
       configString <- Either.catchNonFatal(IOUtils.toString(is, VersionedFileSystem.configEncoding))
