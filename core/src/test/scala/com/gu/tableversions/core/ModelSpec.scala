@@ -32,10 +32,6 @@ class ModelSpec extends FlatSpec with Matchers with EitherValues with TableDrive
       "s3://bucket/data/event_date=2019-01-20/processed_date=2019-01-21/")
   }
 
-  //
-  // Tests specific to the Spark/Hive implementation
-  //
-
   "Parsing a valid partition string" should "produce the expected values" in {
     val testData = Table(
       ("partitionStr", "expected"),

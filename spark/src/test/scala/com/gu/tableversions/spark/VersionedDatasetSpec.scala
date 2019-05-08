@@ -74,7 +74,7 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
       Partition(PartitionColumn("date"), "2019-01-18") -> version1
     )
 
-    VersionedDataset.writeVersionedPartitions(eventsGroup1.toDS, table, partitionPathsV1)
+    VersionedDataset.writeVersionedPartitions(eventsGroup1.toDS(), table, partitionPathsV1)
 
     readDataset[Event](new URI(versionedPath))
       .collect() should contain theSameElementsAs eventsGroup1

@@ -38,7 +38,7 @@ object Partition {
     """(?x)
       |([a-z][a-z0-9_]*)  # column name
       |=
-      |(.+)       # column value
+      |(.+)               # column value
     """.stripMargin.r
 
   def parse(partitionStr: String): Either[Throwable, Partition] = {

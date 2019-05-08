@@ -29,7 +29,8 @@ abstract class ProxyFileSystem extends FileSystem {
   // A utility to map between Paths for the proxy and underlying FileSystems.
   @volatile protected var pathMapper: PathMapper = _
 
-  def initialiseProxyFileSystem(_baseUri: URI, _pathMapper: PathMapper, hadoopConfig: Configuration): Unit = {
+  /** Call from concrete implementation to initialise the base class. */
+  protected def initialiseProxyFileSystem(_baseUri: URI, _pathMapper: PathMapper, hadoopConfig: Configuration): Unit = {
     baseUri = _baseUri
     pathMapper = _pathMapper
 

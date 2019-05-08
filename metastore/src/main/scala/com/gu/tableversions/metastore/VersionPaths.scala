@@ -19,9 +19,7 @@ object VersionPaths {
       partitionPath
     else {
       def normalised(path: String): String = if (path.endsWith("/")) path else path + "/"
-
       def versioned(path: String): String = s"$path${version.label}"
-
       new URI(versioned(normalised(partitionPath.toString)))
     }
 

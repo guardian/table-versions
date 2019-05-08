@@ -87,7 +87,10 @@ trait SparkHiveSuite extends BeforeAndAfterAll with BeforeAndAfterEach with Lazy
       .getOrCreate()
   }
 
-  def customConfig: Map[String, String] = Map.empty
+  /**
+    * Override in test classes to provide specific Spark configuration.
+    */
+  protected def customConfig: Map[String, String] = Map.empty
 
   implicit lazy val ss: SparkSession = spark
 
