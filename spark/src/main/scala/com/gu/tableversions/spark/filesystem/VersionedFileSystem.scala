@@ -14,6 +14,25 @@ import org.apache.commons.io.IOUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
+/**
+  * A Hadoop FileSystem proxy that translates paths according to version configuration.
+  *
+  * This implementation reads the current version for each partition from a configuration file on initialisation,
+  * and creates a PathMapper that performs the translation based on this.
+  *
+  * Note that paths that don't represent a partition with a specified version will be passed through unchanged; only
+  * the scheme of the URI will be converted.
+  *
+  * This file system uses 'versioned' as its scheme, that is, it will be used for URIs like
+  * 'versioned://path/to/data'
+  *
+  * It is also configured with the scheme of the underlying file system. This is currently set in a global
+  * configuration parameter. For example, if this is set to 's3', then the example URI above would be converted
+  * to 's3://path/to/data'.
+  *
+  * Note that for this filesystem to pick up the latest version information, it should run with Hadoop caching
+  * disabled, i.e. by setting "fs.versioned.impl.disable.cache" to "true".
+  */
 class VersionedFileSystem extends ProxyFileSystem with LazyLogging {
 
   override def initialize(path: URI, conf: Configuration): Unit = {
@@ -96,6 +115,9 @@ object VersionedFileSystem extends LazyLogging {
   private implicit def versionEncoder: Encoder[Version] =
     Encoder.encodeString.contramap(_.label)
 
+  /**
+    * Write partition version configuration to the given path.
+    */
   def writeConfig(config: VersionedFileSystemConfig, hadoopConfiguration: Configuration): Unit = {
     val configDirectoryPath = hadoopConfiguration.get(ConfigKeys.configDirectory)
     val configFile = configFilename(new URI(configDirectoryPath))
@@ -113,6 +135,9 @@ object VersionedFileSystem extends LazyLogging {
     }
   }
 
+  /**
+    * Read partition version configuration from the given path.
+    */
   def readConfig(configDir: URI, hadoopConfiguration: Configuration): Either[Throwable, VersionedFileSystemConfig] = {
     val path = configFilename(configDir)
     logger.info(s"Reading config from path: $path")

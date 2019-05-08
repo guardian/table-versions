@@ -59,14 +59,14 @@ class VersionedPathMapperSpec extends FreeSpec with Matchers with TableDrivenPro
 
       "appends versions to input Paths and sets the scheme to the underlying FS" in
         forAll(partitionMappingTable) {
-          case (versionedURI, s3URI) =>
-            modifier.forUnderlying(new Path(versionedURI)) should equal(new Path(s3URI))
+          case (versionedUri, s3Uri) =>
+            modifier.forUnderlying(new Path(versionedUri)) should equal(new Path(s3Uri))
         }
 
       "removes versions from output Paths and sets the scheme to versioned://" in
         forAll(partitionMappingTable) {
-          case (versionedURI, s3URI) =>
-            modifier.fromUnderlying(new Path(s3URI)) should equal(new Path(versionedURI))
+          case (versionedUri, s3Uri) =>
+            modifier.fromUnderlying(new Path(s3Uri)) should equal(new Path(versionedUri))
         }
     }
 
