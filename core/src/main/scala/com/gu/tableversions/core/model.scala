@@ -15,6 +15,11 @@ final case class Partition(columnValues: NonEmptyList[Partition.ColumnValue]) {
     normalised(tableLocation).resolve(s"$toString/")
   }
 
+  /**
+    * Render Partition as a partition path in the format returned from SHOW PARTITIONS queries, for example:
+    *
+    * event_date=2019-02-09/processed_date=2019-02-09
+    */
   override def toString: String =
     columnValues.map(columnValue => s"${columnValue.column.name}=${columnValue.value}").toList.mkString("", "/", "")
 }
@@ -44,6 +49,11 @@ object Partition {
       |(.+)               # column value
     """.stripMargin.r
 
+  /**
+    * Parse Partition from partition path in the format returned from SHOW PARTITIONS queries, for example:
+    *
+    * event_date=2019-02-09/processed_date=2019-02-09
+    */
   def parse(partitionStr: String): Either[Throwable, Partition] = {
     import cats.implicits._
 
