@@ -1,9 +1,10 @@
 package com.gu.tableversions.spark.filesystem
 
-import com.gu.tableversions.core.Version
+import com.gu.tableversions.core.{Partition, Version}
 import org.apache.hadoop.fs.Path
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FreeSpec, Matchers}
+import cats.implicits._
 
 class VersionedPathMapperSpec extends FreeSpec with Matchers with TableDrivenPropertyChecks {
 
@@ -12,14 +13,14 @@ class VersionedPathMapperSpec extends FreeSpec with Matchers with TableDrivenPro
     val v2 = Version.generateVersion.unsafeRunSync()
     val v3 = Version.generateVersion.unsafeRunSync()
 
-    val partitionVersions: Map[String, String] = Map(
-      "date=2019-01-01" -> v1.label,
-      "date=2019-01-02" -> v2.label,
-      "date=2019-01-03" -> v3.label,
-      "date=2019-01-15" -> v1.label,
-      "received_date=2019-01-03/processed_date=2019-01-04" -> v2.label,
-      "year=2019/month=jan/day=01" -> v2.label,
-      "xyz_FOO-baz_42=42/bar=2019-01-03" -> v1.label
+    val partitionVersions: Map[Partition, Version] = Map(
+      partition("date=2019-01-01") -> v1,
+      partition("date=2019-01-02") -> v2,
+      partition("date=2019-01-03") -> v3,
+      partition("date=2019-01-15") -> v1,
+      partition("received_date=2019-01-03/processed_date=2019-01-04") -> v2,
+      partition("year=2019/month=jan/day=01") -> v2,
+      partition("xyz_foo_baz_42=42/bar=2019-01-03") -> v1
     )
 
     val modifier = new VersionedPathMapper("s3", partitionVersions)
@@ -38,7 +39,7 @@ class VersionedPathMapperSpec extends FreeSpec with Matchers with TableDrivenPro
         // Multiple partition columns
         ("versioned://some-bucket/received_date=2019-01-03/processed_date=2019-01-04", s"s3://some-bucket/received_date=2019-01-03/processed_date=2019-01-04/${v2.label}"),
         ("versioned://some-bucket/year=2019/month=jan/day=01", s"s3://some-bucket/year=2019/month=jan/day=01/${v2.label}"),
-        ("versioned://some-bucket/xyz_FOO-baz_42=42/bar=2019-01-03", s"s3://some-bucket/xyz_FOO-baz_42=42/bar=2019-01-03/${v1.label}"),
+        ("versioned://some-bucket/xyz_foo_baz_42=42/bar=2019-01-03", s"s3://some-bucket/xyz_foo_baz_42=42/bar=2019-01-03/${v1.label}"),
 
         // Including file name
         ("versioned://some-bucket/date=2019-01-01/file.parquet", s"s3://some-bucket/date=2019-01-01/${v1.label}/file.parquet"),
@@ -82,4 +83,7 @@ class VersionedPathMapperSpec extends FreeSpec with Matchers with TableDrivenPro
     }
 
   }
+
+  private def partition(str: String): Partition = Partition.parse(str).valueOr(throw _)
+
 }

@@ -9,7 +9,7 @@ import org.scalatest.{EitherValues, FlatSpec, Matchers}
 import cats.implicits._
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class PartitionSpec extends FlatSpec with Matchers with EitherValues with TableDrivenPropertyChecks {
+class ModelSpec extends FlatSpec with Matchers with EitherValues with TableDrivenPropertyChecks {
 
   val tableLocation = new URI("s3://bucket/data/")
 
@@ -46,7 +46,8 @@ class PartitionSpec extends FlatSpec with Matchers with EitherValues with TableD
       ("year=2019/month=01/day=31",
        Partition(ColumnValue(PartitionColumn("year"), "2019"),
                  ColumnValue(PartitionColumn("month"), "01"),
-                 ColumnValue(PartitionColumn("day"), "31")))
+                 ColumnValue(PartitionColumn("day"), "31"))),
+      ("date_2=2019-01-31", Partition(ColumnValue(PartitionColumn("date_2"), "2019-01-31")))
     )
 
     forAll(testData) { (partitionStr: String, expected: Partition) =>

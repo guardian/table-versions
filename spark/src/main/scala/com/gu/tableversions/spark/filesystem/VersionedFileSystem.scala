@@ -4,6 +4,7 @@ import java.net.URI
 import java.time.Instant
 import java.util.Objects
 
+import cats.syntax.either._
 import com.gu.tableversions.core.{Partition, Version}
 import com.gu.tableversions.spark.filesystem.VersionedFileSystem.ConfigKeys
 import com.typesafe.scalalogging.LazyLogging
@@ -32,16 +33,12 @@ class VersionedFileSystem extends ProxyFileSystem with LazyLogging {
     // in the URI passed during initialisation to the base scheme.
     val baseURI = new URI(baseFsScheme, null, path.getSchemeSpecificPart, null, null)
 
-    VersionedFileSystem.readConfig(new URI(configDirectory), conf) match {
-      case Right(config) =>
-        val pathMapper = new VersionedPathMapper(baseFsScheme, config.partitionVersions.map {
-          case (p, v) => p.toString -> v.label
-        })
+    val config = VersionedFileSystem
+      .readConfig(new URI(configDirectory), conf)
+      .valueOr(e => throw new Exception("Unable to read partition version configuration", e))
 
-        initialiseProxyFileSystem(baseURI, pathMapper, conf)
-
-      case Left(e) => throw e
-    }
+    val pathMapper = new VersionedPathMapper(baseFsScheme, config.partitionVersions)
+    initialiseProxyFileSystem(baseURI, pathMapper, conf)
   }
 }
 
@@ -79,24 +76,24 @@ object VersionedFileSystem extends LazyLogging {
   import io.circe.generic.auto._
   import io.circe.syntax._
 
-  private case class VersionedFileSystemConfig(partitionVersions: Map[Partition, Version])
+  case class VersionedFileSystemConfig(partitionVersions: Map[Partition, Version])
 
-  implicit def partitionKeyDecoder: KeyDecoder[Partition] =
+  private implicit def partitionKeyDecoder: KeyDecoder[Partition] =
     KeyDecoder.instance(s => Partition.parse(s).toOption)
 
-  implicit def versionDecoder: Decoder[Version] =
+  private implicit def versionDecoder: Decoder[Version] =
     Decoder.decodeString.emap(s => Version.parse(s).leftMap(_.getMessage))
 
-  implicit def instantDecoder: Decoder[Instant] = Decoder.decodeString.emap { str =>
+  private implicit def instantDecoder: Decoder[Instant] = Decoder.decodeString.emap { str =>
     Either.catchNonFatal(Instant.parse(str)).leftMap(t => s"Unable to parse instant '$str': " + t.getMessage)
   }
 
-  implicit def partitionEncoder: KeyEncoder[Partition] =
+  private implicit def partitionEncoder: KeyEncoder[Partition] =
     KeyEncoder.instance { partition =>
       partition.columnValues.map(cv => s"${cv.column.name}=${cv.value}").toList.mkString("/")
     }
 
-  implicit def versionEncoder: Encoder[Version] =
+  private implicit def versionEncoder: Encoder[Version] =
     Encoder.encodeString.contramap(_.label)
 
   def writeConfig(config: VersionedFileSystemConfig, hadoopConfiguration: Configuration): Unit = {

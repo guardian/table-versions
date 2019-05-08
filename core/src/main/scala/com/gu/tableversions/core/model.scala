@@ -36,7 +36,7 @@ object Partition {
 
   private val ColumnValueRegex =
     """(?x)
-      |([a-z_]+)  # column name
+      |([a-z][a-z0-9_]*)  # column name
       |=
       |(.+)       # column value
     """.stripMargin.r

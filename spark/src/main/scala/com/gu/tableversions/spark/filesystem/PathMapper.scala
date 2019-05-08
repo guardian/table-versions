@@ -2,6 +2,7 @@ package com.gu.tableversions.spark.filesystem
 
 import java.net.URI
 
+import com.gu.tableversions.core.{Partition, Version}
 import com.gu.tableversions.spark.filesystem.VersionedPathMapper.setScheme
 import org.apache.hadoop.fs.Path
 
@@ -14,7 +15,7 @@ trait PathMapper {
   def fromUnderlying(path: Path): Path
 }
 
-class VersionedPathMapper(underlyingFsScheme: String, partitionVersions: Map[String, String]) extends PathMapper {
+class VersionedPathMapper(underlyingFsScheme: String, partitionVersions: Map[Partition, Version]) extends PathMapper {
 
   // convert a path with a "versioned" scheme to one suitable for the underlying FileSystem:
   // - replace the versioned schema with the base FS
@@ -36,11 +37,11 @@ class VersionedPathMapper(underlyingFsScheme: String, partitionVersions: Map[Str
     val pathWithoutVersionDirectory = partitionVersions
       .find {
         case (partition, _) =>
-          path.toString.contains(VersionedPathMapper.normalize(partition))
+          path.toString.contains(VersionedPathMapper.normalize(partition.toString))
       }
       .map {
         case (_, version) =>
-          new Path(path.toString.replace(s"/$version", ""))
+          new Path(path.toString.replace(s"/${version.label}", ""))
       }
       .getOrElse(path)
 
@@ -54,16 +55,16 @@ class VersionedPathMapper(underlyingFsScheme: String, partitionVersions: Map[Str
     val versionForPath = partitionVersions
       .find {
         case (partition, version) =>
-          uriSchemeSpecificPart.contains(VersionedPathMapper.normalize(partition)) && !uriSchemeSpecificPart.contains(
-            version)
+          uriSchemeSpecificPart.contains(VersionedPathMapper.normalize(partition.toString)) && !uriSchemeSpecificPart
+            .contains(version.label)
       }
 
     versionForPath
       .map {
         case (partition, version) =>
           new Path(
-            path.toString.replace(VersionedPathMapper.normalize(partition),
-                                  s"${VersionedPathMapper.normalize(partition)}/$version"))
+            path.toString.replace(VersionedPathMapper.normalize(partition.toString),
+                                  s"${VersionedPathMapper.normalize(partition.toString)}/${version.label}"))
       }
       .getOrElse(path)
   }
