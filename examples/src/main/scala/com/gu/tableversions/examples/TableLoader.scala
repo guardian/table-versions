@@ -31,8 +31,6 @@ class TableLoader[T <: Product: TypeTag](table: TableDefinition, createTableDdl:
 
     // Initialise version tracking for table
     tableVersions.init(table.name, isSnapshot, userId, message, Instant.now()).unsafeRunSync()
-
-    VersionedFileSystem.setConfigDirectory(table.location)
   }
 
   def data(): Dataset[T] =

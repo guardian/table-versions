@@ -9,7 +9,7 @@ import com.gu.tableversions.core.Partition.PartitionColumn
 import com.gu.tableversions.core.TableVersions._
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore
-import com.gu.tableversions.spark.filesystem.VersionedFileSystem.ConfigKeys
+import com.gu.tableversions.spark.filesystem.VersionedFileSystem
 import com.gu.tableversions.spark.{SparkHiveMetastore, SparkHiveSuite}
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -19,7 +19,7 @@ import org.scalatest.{FlatSpec, Matchers}
   */
 class DatePartitionedTableLoaderSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
-  override def customConfig = Map(ConfigKeys.baseFS -> "file")
+  override def customConfig = VersionedFileSystem.sparkConfig("file", tableDir.toUri)
 
   import DatePartitionedTableLoaderSpec._
 

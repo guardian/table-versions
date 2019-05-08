@@ -12,7 +12,6 @@ import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import org.apache.commons.io.IOUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.spark.sql.SparkSession
 
 class VersionedFileSystem extends ProxyFileSystem with LazyLogging {
 
@@ -49,8 +48,6 @@ class VersionedFileSystem extends ProxyFileSystem with LazyLogging {
 object VersionedFileSystem extends LazyLogging {
 
   val scheme = "versioned"
-  val configFilename = "_vfsconfig"
-  val configEncoding = "UTF-8"
 
   object ConfigKeys {
     val baseFS = "fs.versioned.baseFS"
@@ -58,12 +55,31 @@ object VersionedFileSystem extends LazyLogging {
     val configDirectory = "fs.versioned.configDirectory"
   }
 
+  /**
+    * Returns Spark config settings needed to enable the VersionedFileSystem.
+    *
+    * Note that these have the "spark.hadoop." prefix; this means that these parameters will be set
+    * in the hadoop configuration of the Spark job, minus the prefix.
+    */
+  def sparkConfig(baseFilesystemSchema: String, configDirectory: URI): Map[String, String] =
+    Map(
+      // @formatter: off
+      "spark.hadoop.fs.versioned.impl" -> "com.gu.tableversions.spark.filesystem.VersionedFileSystem",
+      "spark.hadoop." + ConfigKeys.baseFS -> "file",
+      "spark.hadoop." + ConfigKeys.configDirectory -> configDirectory.toString,
+      "spark.hadoop." + VersionedFileSystem.ConfigKeys.disableCache -> "true"
+      // @formatter: on
+    )
+
+  private[filesystem] val configEncoding = "UTF-8"
+  private[filesystem] val configFilename = "_vfsconfig"
+
   import cats.syntax.either._
   import io.circe.Decoder._
   import io.circe.generic.auto._
   import io.circe.syntax._
 
-  case class VersionedFileSystemConfig(partitionVersions: Map[Partition, Version])
+  private case class VersionedFileSystemConfig(partitionVersions: Map[Partition, Version])
 
   implicit def partitionKeyDecoder: KeyDecoder[Partition] =
     KeyDecoder.instance(s => Partition.parse(s).toOption)
@@ -112,15 +128,10 @@ object VersionedFileSystem extends LazyLogging {
     } yield config
   }
 
-  def configFilename(configDir: URI): URI = {
+  private[filesystem] def configFilename(configDir: URI): URI = {
     val normalizedConfigDir: URI =
       if (configDir.toString.endsWith("/")) configDir else new URI(configDir.toString + "/")
     normalizedConfigDir.resolve(configFilename)
-  }
-
-  def setConfigDirectory(path: URI)(implicit spark: SparkSession): Unit = {
-    logger.info(s"Setting config directory to path: $path")
-    spark.sparkContext.hadoopConfiguration.set(ConfigKeys.configDirectory, path.toString)
   }
 
 }

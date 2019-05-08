@@ -14,8 +14,9 @@ class VersionedFileSystemSpec
     with Generators
     with SparkHiveSuite {
 
+  override def customConfig = VersionedFileSystem.sparkConfig("file", tableDir.toUri)
+
   "Written config files should be parsed successfully" in forAll(versionedFileSystemConfigGenerator) { conf =>
-    VersionedFileSystem.setConfigDirectory(tableUri)
     VersionedFileSystem.writeConfig(conf, spark.sparkContext.hadoopConfiguration)
     val read = VersionedFileSystem.readConfig(tableUri, spark.sparkContext.hadoopConfiguration)
     read.right.value shouldBe conf

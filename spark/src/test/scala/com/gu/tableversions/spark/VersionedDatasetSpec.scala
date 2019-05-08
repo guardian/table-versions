@@ -14,7 +14,6 @@ import com.gu.tableversions.metastore.Metastore.TableOperation.{AddPartition, Up
 import com.gu.tableversions.spark.VersionedDataset._
 import com.gu.tableversions.spark.VersionedDatasetSpec.{Event, User}
 import com.gu.tableversions.spark.filesystem.VersionedFileSystem
-import com.gu.tableversions.spark.filesystem.VersionedFileSystem.ConfigKeys
 import org.apache.spark.sql.Dataset
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -22,7 +21,7 @@ import scala.reflect.runtime.universe.TypeTag
 
 class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
-  override def customConfig = Map(ConfigKeys.baseFS -> "file")
+  override def customConfig = VersionedFileSystem.sparkConfig("file", tableDir.toUri)
 
   import spark.implicits._
 
@@ -63,7 +62,6 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
     val path = tableUri.resolve(s"table").toString.replace("file:", "versioned://")
     val table = TableDefinition(TableName("dev", "test"), tableUri, PartitionSchema(List(PartitionColumn("date"))))
-    VersionedFileSystem.setConfigDirectory(tableDir.toUri)
 
     val eventsGroup1 = List(
       Event("101", "A", Date.valueOf("2019-01-15")),
@@ -148,8 +146,6 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
   }
 
   "Inserting multiple records into the same partition" should "write the correct data to the filesystem" in {
-    VersionedFileSystem.setConfigDirectory(tableDir.toUri)
-
     val eventsTable =
       TableDefinition(TableName(schema, "events"), tableUri, PartitionSchema(List(PartitionColumn("date"))))
 

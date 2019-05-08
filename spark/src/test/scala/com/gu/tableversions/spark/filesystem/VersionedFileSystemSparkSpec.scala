@@ -3,13 +3,13 @@ package com.gu.tableversions.spark.filesystem
 import com.gu.tableversions.core.Partition.{ColumnValue, PartitionColumn}
 import com.gu.tableversions.core.{Partition, Version}
 import com.gu.tableversions.spark.SparkHiveSuite
-import com.gu.tableversions.spark.filesystem.VersionedFileSystem.{ConfigKeys, VersionedFileSystemConfig}
+import com.gu.tableversions.spark.filesystem.VersionedFileSystem.VersionedFileSystemConfig
 import org.apache.spark.sql.SaveMode
 import org.scalatest.{FlatSpec, Matchers}
 
 class VersionedFileSystemSparkSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
-  override def customConfig = Map(ConfigKeys.baseFS -> "file")
+  override def customConfig = VersionedFileSystem.sparkConfig("file", tableDir.toUri)
 
   spark.sparkContext.setLogLevel("ERROR")
 
@@ -28,7 +28,6 @@ class VersionedFileSystemSparkSpec extends FlatSpec with Matchers with SparkHive
       )
     )
 
-    VersionedFileSystem.setConfigDirectory(tableDir.toUri)
     VersionedFileSystem.writeConfig(vfsConfig, spark.sparkContext.hadoopConfiguration)
 
     val path = tableUri.resolve(s"table/").toString.replace("file:", "versioned://")
