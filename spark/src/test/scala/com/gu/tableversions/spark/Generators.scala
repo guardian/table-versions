@@ -3,7 +3,7 @@ package com.gu.tableversions.spark
 import cats.data.NonEmptyList
 import com.gu.tableversions.core.{Partition, Version}
 import com.gu.tableversions.core.Partition.{ColumnValue, PartitionColumn}
-import com.gu.tableversions.spark.VersionedFileSystem.VersionedFileSystemConfig
+import com.gu.tableversions.spark.filesystem.VersionedFileSystem.VersionedFileSystemConfig
 import org.scalacheck.Gen
 
 trait Generators {

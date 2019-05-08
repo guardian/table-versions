@@ -13,6 +13,7 @@ import com.gu.tableversions.metastore.Metastore.TableChanges
 import com.gu.tableversions.metastore.Metastore.TableOperation.{AddPartition, UpdateTableVersion}
 import com.gu.tableversions.spark.VersionedDataset._
 import com.gu.tableversions.spark.VersionedDatasetSpec.{Event, User}
+import com.gu.tableversions.spark.filesystem.VersionedFileSystem
 import org.apache.spark.sql.Dataset
 import org.scalatest.{FlatSpec, Matchers}
 

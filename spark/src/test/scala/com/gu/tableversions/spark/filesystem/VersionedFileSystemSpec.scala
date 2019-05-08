@@ -1,5 +1,6 @@
-package com.gu.tableversions.spark
+package com.gu.tableversions.spark.filesystem
 
+import com.gu.tableversions.spark.{Generators, SparkHiveSuite}
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import org.scalatest.{EitherValues, FreeSpec, Matchers}
 

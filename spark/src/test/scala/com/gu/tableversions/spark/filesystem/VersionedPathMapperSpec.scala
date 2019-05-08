@@ -1,4 +1,4 @@
-package com.gu.tableversions.spark
+package com.gu.tableversions.spark.filesystem
 
 import com.gu.tableversions.core.Version
 import org.apache.hadoop.fs.Path

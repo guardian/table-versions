@@ -1,11 +1,11 @@
-package com.gu.tableversions.spark
+package com.gu.tableversions.spark.filesystem
 
 import java.net.URI
 import java.time.Instant
 import java.util.Objects
 
 import com.gu.tableversions.core.{Partition, Version}
-import com.gu.tableversions.spark.VersionedFileSystem.ConfigKeys
+import com.gu.tableversions.spark.filesystem.VersionedFileSystem.ConfigKeys
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.parser._
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -57,7 +57,6 @@ object VersionedFileSystem extends LazyLogging {
     val disableCache = "fs.versioned.impl.disable.cache"
     val configDirectory = "fs.versioned.configDirectory"
   }
-
 
   import cats.syntax.either._
   import io.circe.Decoder._

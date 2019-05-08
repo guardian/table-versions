@@ -7,7 +7,7 @@ import cats.effect.IO
 import com.gu.tableversions.core.TableVersions.{UpdateMessage, UserId}
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore
-import com.gu.tableversions.spark.VersionedFileSystem.ConfigKeys
+import com.gu.tableversions.spark.filesystem.VersionedFileSystem.ConfigKeys
 import com.gu.tableversions.spark.{SparkHiveMetastore, SparkHiveSuite}
 import org.scalatest.{FlatSpec, Matchers}
 

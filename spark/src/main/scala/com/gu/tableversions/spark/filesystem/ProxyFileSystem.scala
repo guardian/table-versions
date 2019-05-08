@@ -1,10 +1,10 @@
-package com.gu.tableversions.spark
+package com.gu.tableversions.spark.filesystem
 
 import java.net.URI
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileChecksum, FileStatus, FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
+import org.apache.hadoop.fs._
 import org.apache.hadoop.util.Progressable
 
 // A ProxyFileSystem wraps the behaviour of some other ("underlying" or "base") FileSystem,

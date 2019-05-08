@@ -5,6 +5,7 @@ import java.net.URI
 import java.nio.file.{Files, Path, Paths}
 import java.util.UUID
 
+import com.gu.tableversions.spark.filesystem.VersionedFileSystem
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkConf
@@ -77,7 +78,7 @@ trait SparkHiveSuite extends BeforeAndAfterAll with BeforeAndAfterEach with Lazy
       .set("spark.driver.host", "127.0.0.1")
       .set("spark.sql.orc.impl", "native")
       .set("spark.sql.shuffle.partitions", "8") // For speeding up tests. The default is 200, see https://spark.apache.org/docs/latest/sql-programming-guide.html#other-configuration-options
-      .set("fs.versioned.impl", "com.gu.tableversions.spark.VersionedFileSystem")
+      .set("fs.versioned.impl", "com.gu.tableversions.spark.filesystem.VersionedFileSystem")
       .set(VersionedFileSystem.ConfigKeys.disableCache, "true")
 
     (jobConfig ++ customConfig).foreach { case (key, value) => conf.set(key, value) }

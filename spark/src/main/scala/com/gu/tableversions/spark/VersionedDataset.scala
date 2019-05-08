@@ -1,6 +1,5 @@
 package com.gu.tableversions.spark
 
-import java.net.URI
 import java.time.Instant
 
 import cats.effect.IO
@@ -10,7 +9,8 @@ import com.gu.tableversions.core.TableVersions.{TableOperation, TableUpdate, Upd
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore.TableChanges
 import com.gu.tableversions.metastore.{Metastore, VersionPaths}
-import com.gu.tableversions.spark.VersionedFileSystem.VersionedFileSystemConfig
+import com.gu.tableversions.spark.filesystem.VersionedFileSystem
+import com.gu.tableversions.spark.filesystem.VersionedFileSystem.VersionedFileSystemConfig
 import org.apache.spark.sql.{Dataset, Row, SaveMode, SparkSession}
 
 /**

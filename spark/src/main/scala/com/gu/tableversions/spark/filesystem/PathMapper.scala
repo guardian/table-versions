@@ -1,8 +1,8 @@
-package com.gu.tableversions.spark
+package com.gu.tableversions.spark.filesystem
 
 import java.net.URI
 
-import com.gu.tableversions.spark.VersionedPathMapper.setScheme
+import com.gu.tableversions.spark.filesystem.VersionedPathMapper.setScheme
 import org.apache.hadoop.fs.Path
 
 // Map paths between one "outer" FileSystem (e.g. a ProxyFileSystem) and an underlying one.
