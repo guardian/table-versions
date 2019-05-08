@@ -58,7 +58,7 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
     import spark.implicits._
 
-    val path = tableUri.resolve(s"table").toString.replace("file:", "versioned://")
+    val versionedPath = tableUri.resolve(s"table").toString.replace("file:", "versioned://")
     val table = TableDefinition(TableName("dev", "test"), tableUri, PartitionSchema(List(PartitionColumn("date"))))
 
     val eventsGroup1 = List(
@@ -76,7 +76,7 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
     VersionedDataset.writeVersionedPartitions(eventsGroup1.toDS, table, partitionPathsV1)
 
-    readDataset[Event](new URI(path))
+    readDataset[Event](new URI(versionedPath))
       .collect() should contain theSameElementsAs eventsGroup1
 
     // Now write some new data to the same partitions
@@ -95,7 +95,7 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
     VersionedDataset.writeVersionedPartitions(eventsGroup2.toDS(), table, partitionPathsV2)
 
-    readDataset[Event](new URI(path))
+    readDataset[Event](new URI(versionedPath))
       .collect() should contain theSameElementsAs eventsGroup2
   }
 
@@ -167,8 +167,6 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
       Event("103", "C", Date.valueOf("2019-01-15"))
     )
 
-    val timestampBeforeWriting = Instant.now()
-
     // Do the insert
     val userId = UserId("user-id")
     val (tableVersion, metastoreChanges) =
@@ -190,13 +188,10 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
     tableUpdates should have size 2
     val tableUpdate = tableUpdates.head
     tableUpdate.message shouldBe UpdateMessage("Test insert events into table")
-    timestampBeforeWriting.isAfter(tableUpdate.timestamp) shouldBe false
     tableUpdate.userId shouldBe userId
-
   }
 
   "Inserting a partitioned dataset" should "write the data to the versioned partitions and commit the new versions" in {
-
     val eventsTable =
       TableDefinition(TableName(schema, "events"), tableUri, PartitionSchema(List(PartitionColumn("date"))))
 
