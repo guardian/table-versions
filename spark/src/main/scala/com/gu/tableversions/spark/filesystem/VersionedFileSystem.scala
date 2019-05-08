@@ -77,7 +77,7 @@ object VersionedFileSystem extends LazyLogging {
     * Note that these have the "spark.hadoop." prefix; this means that these parameters will be set
     * in the hadoop configuration of the Spark job, minus the prefix.
     */
-  def sparkConfig(baseFilesystemSchema: String, configDirectory: URI): Map[String, String] =
+  def sparkConfig(baseFileSystemSchema: String, configDirectory: URI): Map[String, String] =
     Map(
       // @formatter: off
       "spark.hadoop.fs.versioned.impl" -> "com.gu.tableversions.spark.filesystem.VersionedFileSystem",

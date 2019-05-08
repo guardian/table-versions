@@ -62,7 +62,7 @@ class ModelSpec extends FlatSpec with Matchers with EitherValues with TableDrive
         "partitionString",
         "invalid partition string",
         "invalid partition string=42",
-        //"/",
+        "/",
         "")
     // format: on
 

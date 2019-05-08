@@ -25,8 +25,6 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
 
   import spark.implicits._
 
-  spark.sparkContext.setLogLevel("ERROR")
-
   // Stub version generator that returns the same version on every invocation
   lazy val version1 = Version.generateVersion.unsafeRunSync()
   lazy val version2 = Version.generateVersion.unsafeRunSync()
@@ -177,7 +175,7 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
       events.toDS().versionedInsertInto(eventsTable, userId, "Test insert events into table")
 
     // Check that data was written correctly to the right place
-    readDataset[Event](resolveTablePath(""))
+    readDataset[Event](tableUri)
       .collect() should contain theSameElementsAs events
 
     // Check that we performed the right version updates and returned the right results
@@ -236,7 +234,7 @@ class VersionedDatasetSpec extends FlatSpec with Matchers with SparkHiveSuite {
       events.toDS().versionedInsertInto(eventsTable, userId, "Test insert events into table")
 
     // Check that data was written correctly to the right place
-    readDataset[Event](resolveTablePath(""))
+    readDataset[Event](tableUri)
       .collect() should contain theSameElementsAs (eventsDay1 ++ eventsDay2 ++ eventsDay3)
 
     // Check that we performed the right version updates and returned the right results

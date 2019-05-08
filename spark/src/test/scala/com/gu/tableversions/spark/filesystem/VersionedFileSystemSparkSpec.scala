@@ -11,8 +11,6 @@ class VersionedFileSystemSparkSpec extends FlatSpec with Matchers with SparkHive
 
   override def customConfig = VersionedFileSystem.sparkConfig("file", tableDir.toUri)
 
-  spark.sparkContext.setLogLevel("ERROR")
-
   "VersionedFileSystem" should "write partitions with a version suffix" in {
     import spark.implicits._
 

@@ -58,8 +58,6 @@ lazy val `table-versions-cli` = project
   .settings(commonSettings)
   .dependsOn(`table-versions-core`, `table-versions-metastore`)
 
-val circeVersion = "0.10.0"
-
 lazy val `table-versions-spark` = project
   .in(file("spark"))
   .settings(commonSettings)
