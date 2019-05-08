@@ -13,7 +13,6 @@ lazy val commonSettings = Seq(
   scalacOptions ++= scala211CompilerFlags,
   scalafmtOnCompile := true,
   libraryDependencies ++= Seq(
-    "org.apache.hadoop" % "hadoop-common" % "2.9.2" % Test,
     scalatest % Test,
     "org.scalacheck" %% "scalacheck" % "1.14.0" % Test
   ),
@@ -82,7 +81,6 @@ lazy val `table-versions-glue` = project
     "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
     "log4j" % "log4j" % "1.2.17",
     "com.amazonaws" % "aws-java-sdk-glue" % "1.11.538",
-    "org.apache.hadoop" % "hadoop-common" % "2.9.2" % Test,
     scalatest % IntegrationTest
   ))
   .settings(parallelExecution in Test := false)
