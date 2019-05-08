@@ -7,7 +7,6 @@ import com.gu.tableversions.core.TableVersions.{UpdateMessage, UserId}
 import com.gu.tableversions.core.{TableDefinition, TableVersions, Version}
 import com.gu.tableversions.metastore.Metastore
 import com.gu.tableversions.spark.VersionedDataset
-import com.gu.tableversions.spark.filesystem.VersionedFileSystem
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.{Dataset, SparkSession}
 

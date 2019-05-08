@@ -1,10 +1,10 @@
 package com.gu.tableversions.spark.filesystem
 
+import cats.implicits._
 import com.gu.tableversions.core.{Partition, Version}
 import org.apache.hadoop.fs.Path
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FreeSpec, Matchers}
-import cats.implicits._
 
 class VersionedPathMapperSpec extends FreeSpec with Matchers with TableDrivenPropertyChecks {
 

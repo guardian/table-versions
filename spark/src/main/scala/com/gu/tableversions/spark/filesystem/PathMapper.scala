@@ -3,7 +3,6 @@ package com.gu.tableversions.spark.filesystem
 import java.net.URI
 
 import com.gu.tableversions.core.{Partition, Version}
-import com.gu.tableversions.spark.filesystem.VersionedPathMapper.setScheme
 import org.apache.hadoop.fs.Path
 
 /**

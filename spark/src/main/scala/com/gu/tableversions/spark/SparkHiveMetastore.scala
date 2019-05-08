@@ -1,13 +1,9 @@
 package com.gu.tableversions.spark
 
-import java.io.File
 import java.net.URI
-import java.time.LocalDateTime
-import java.util.UUID
 
 import cats.effect.Sync
 import cats.implicits._
-import com.gu.tableversions.core.Partition.{ColumnValue, PartitionColumn}
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore.TableOperation
 import com.gu.tableversions.metastore.Metastore.TableOperation._
@@ -19,9 +15,8 @@ import org.apache.spark.sql.SparkSession
   * Concrete implementation of the Metastore API, using Spark and Hive APIs.
   */
 class SparkHiveMetastore[F[_]](implicit spark: SparkSession, F: Sync[F]) extends Metastore[F] with LazyLogging {
-  import cats.syntax.either._
-
   import SparkHiveMetastore._
+  import cats.syntax.either._
   import spark.implicits._
 
   override def currentVersion(table: TableName): F[TableVersion] = {
