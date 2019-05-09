@@ -6,22 +6,10 @@ import com.gu.tableversions.core.{Partition, Version}
 import org.apache.hadoop.fs.Path
 
 /**
-  * Map paths between one "outer" FileSystem (e.g. a ProxyFileSystem) and an underlying one.
-  * For example, by changing the schema, or appending version directories.
-  */
-trait PathMapper {
-
-  /** Convert a path with a "versioned" scheme to one suitable for the underlying FileSystem. */
-  def forUnderlying(path: Path): Path
-
-  /** Convert a path from the underlying FileSystem to one in the "versioned" scheme. */
-  def fromUnderlying(path: Path): Path
-}
-
-/**
   * Path mapper that converts paths for partitions according to a pre-configured set of versioned partitions.
   */
-class VersionedPathMapper(underlyingFsScheme: String, partitionVersions: Map[Partition, Version]) extends PathMapper {
+class VersionedPathMapper(underlyingFsScheme: String, partitionVersions: Map[Partition, Version])
+    extends ProxyFileSystem.PathMapper {
 
   import VersionedPathMapper._
 
@@ -53,21 +41,22 @@ class VersionedPathMapper(underlyingFsScheme: String, partitionVersions: Map[Par
   }
 
   private def appendVersion(path: Path): Path = {
-    val uri = path.toUri
-    val uriSchemeSpecificPart = uri.getSchemeSpecificPart
+    val uriSchemeSpecificPart = path.toUri.getSchemeSpecificPart
 
-    val versionForPath = partitionVersions
+    val normalisedPartitions = partitionVersions.map {
+      case (partition, version) => normalize(partition.toString) -> version.label
+    }
+
+    val versionForPath = normalisedPartitions
       .find {
         case (partition, version) =>
-          uriSchemeSpecificPart.contains(normalize(partition.toString)) && !uriSchemeSpecificPart
-            .contains(version.label)
+          uriSchemeSpecificPart.contains(partition) && !uriSchemeSpecificPart.contains(version)
       }
 
     versionForPath
       .map {
         case (partition, version) =>
-          new Path(
-            path.toString.replace(normalize(partition.toString), s"${normalize(partition.toString)}/${version.label}"))
+          new Path(path.toString.replace(normalize(partition), s"$partition/$version"))
       }
       .getOrElse(path)
   }

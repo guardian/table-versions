@@ -19,6 +19,8 @@ import org.apache.hadoop.util.Progressable
   */
 abstract class ProxyFileSystem extends FileSystem {
 
+  import ProxyFileSystem._
+
   // The underlying FileSystem we delegate to. Paths in calls to this FileSystem
   // should be translated with the PathMapper.
   @volatile protected var baseFs: FileSystem = _
@@ -100,4 +102,21 @@ abstract class ProxyFileSystem extends FileSystem {
       fileStatus.getModificationTime,
       f(fileStatus.getPath)
     )
+}
+
+object ProxyFileSystem {
+
+  /**
+    * Map paths between one "outer" FileSystem (e.g. a ProxyFileSystem) and an underlying one.
+    * For example, by changing the schema, or appending version directories.
+    */
+  trait PathMapper {
+
+    /** Convert a path with a "versioned" scheme to one suitable for the underlying FileSystem. */
+    def forUnderlying(path: Path): Path
+
+    /** Convert a path from the underlying FileSystem to one in the "versioned" scheme. */
+    def fromUnderlying(path: Path): Path
+  }
+
 }
