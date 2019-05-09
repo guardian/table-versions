@@ -11,7 +11,8 @@ import com.gu.tableversions.metastore.Metastore.TableChanges
 import com.gu.tableversions.metastore.{Metastore, VersionPaths}
 import com.gu.tableversions.spark.filesystem.VersionedFileSystem
 import com.gu.tableversions.spark.filesystem.VersionedFileSystem.VersionedFileSystemConfig
-import org.apache.spark.sql.{Dataset, Row, SaveMode, SparkSession}
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.{DataFrame, Dataset, Row, SaveMode, SparkSession}
 
 /**
   * Code for writing Spark datasets to storage in a version-aware manner, taking in version information,
@@ -56,7 +57,7 @@ object VersionedDataset {
         partitionVersions = datasetPartitions.map(p => p -> version).toMap
 
         // Write Spark dataset to the versioned path
-        _ <- IO(VersionedDataset.writeVersionedPartitions(dataset, table, partitionVersions)(dataset.sparkSession))
+        _ <- IO(VersionedDataset.writeVersionedPartitions(dataset, table, partitionVersions)(dataset.sparkSession)(dataset.sparkSession))
 
       } yield datasetPartitions.map(partition => AddPartitionVersion(partition, version))
 
@@ -94,8 +95,10 @@ object VersionedDataset {
       implicit spark: SparkSession): List[Partition] = {
     // Query dataset for partitions
     // NOTE: this implementation has not been optimised yet
+    import DataFrameSyntax._
+
     val partitionColumnsList = partitionSchema.columns.map(_.name)
-    val partitionsDf = dataset.selectExpr(partitionColumnsList: _*).distinct()
+    val partitionsDf = dataset.toDF.withSnakeCaseColumnNames.selectExpr(partitionColumnsList: _*).distinct()
     val partitionRows = partitionsDf.collect().toList
 
     def rowToPartition(row: Row): Partition = {
@@ -124,12 +127,102 @@ object VersionedDataset {
     VersionedFileSystem.writeConfig(VersionedFileSystemConfig(partitionVersions),
                                     dataset.sparkSession.sparkContext.hadoopConfiguration)
 
-    val partitions = table.partitionSchema.columns.map(_.name)
+    import DataFrameSyntax._
 
-    dataset.toDF.write
+    val partitions = table.partitionSchema.columns.map(_.name.camel)
+
+    dataset.toDF.withSnakeCaseColumnNames.write
       .partitionBy(partitions: _*)
       .mode(SaveMode.Append)
       .format(table.format.name)
       .save(VersionedFileSystem.scheme + "://" + table.location.getPath)
   }
+}
+
+object StructTypeSyntax {
+
+  final case class FieldName(value: String) extends AnyVal
+
+  private val EMPTY_STRUCT_TYPE = StructType(Seq.empty[StructField])
+  implicit class SnakeString(val underlying: String) extends AnyVal {
+
+    def camel: String =
+      "_([^_])".r
+        .replaceSomeIn(underlying,
+                       regexMatch =>
+                         if (regexMatch.start == 0) None // don't uppercase first character
+                         else Some(regexMatch.group(1).toUpperCase))
+
+    def snake: String =
+      if (underlying.isEmpty) ""
+      else {
+        val st = underlying.toStream
+
+        //first zip all characters in string with previous character in same string,
+        // ignoring (ie. tail) first character who is always lower-cased.
+        val chars = (st zip (' ' #:: st)).tail map {
+          case (char, previousChar) if char.isUpper && previousChar != '_' && previousChar.isLower =>
+            s"_${char.toLower}"
+          case (char, _) => s"${char.toLower}"
+        }
+
+        s"${underlying.head.toLower}" + // first character always lower-cased.
+          chars.take(underlying.length - 1).foldLeft("") { _ + _ }
+      }
+  }
+
+  implicit class RichStructType(val underlying: StructType) extends AnyVal {
+
+    def camelCaseToSnakeCase: StructType = transformFieldNames(_.snake)
+
+    def transformFieldNames(f: String => String): StructType =
+      traverse(structField => structField.copy(name = f(structField.name)))
+
+    def traverse(transform: StructField => StructField): StructType = {
+      def traverseArray(root: ArrayType): ArrayType =
+        root.elementType match {
+          case v: ArrayType  => root.copy(elementType = traverseArray(v))
+          case v: StructType => root.copy(elementType = traverseList(v.fields.toList, EMPTY_STRUCT_TYPE))
+          case _             => root
+        }
+
+      def traverseList(fields: List[StructField], root: StructType): StructType =
+        fields match {
+          case (f @ StructField(_, st: ArrayType, _, _)) :: fs => //descending
+            //transform(f) may not return a type ArrayType in which case traverseArray(...) is unneeded but it keeps syntax simpler
+            val nr1 = root add transform(f.copy(dataType = traverseArray(st)))
+            traverseList(fs, nr1)
+          case (f @ StructField(_, st: StructType, _, _)) :: fs => //descending
+            //transform(f) may not return a type StructType in which case traverseList(...) is unneeded but it keeps syntax simpler
+            val nr1 = root add transform(f.copy(dataType = traverseList(st.fields.toList, EMPTY_STRUCT_TYPE)))
+            traverseList(fs, nr1)
+          case f :: fs =>
+            traverseList(fs, root add transform(f))
+          case Nil =>
+            root
+        }
+
+      traverseList(underlying.fields.toList, EMPTY_STRUCT_TYPE)
+    }
+  }
+
+}
+
+trait DataFrameSyntax {
+
+  import DataFrameSyntax._
+
+  implicit def toDataFrameOps(dataFrame: DataFrame): DataFrameOps = new DataFrameOps(dataFrame)
+
+}
+
+object DataFrameSyntax extends DataFrameSyntax {
+  import StructTypeSyntax._
+
+  class DataFrameOps(private val dataFrame: DataFrame) extends AnyVal {
+
+    def withSnakeCaseColumnNames(implicit ss: SparkSession): DataFrame =
+      ss.createDataFrame(dataFrame.rdd, dataFrame.schema.camelCaseToSnakeCase)
+  }
+
 }

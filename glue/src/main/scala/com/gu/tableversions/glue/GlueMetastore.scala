@@ -75,6 +75,8 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
 
   def addPartition(table: TableName, partition: Partition, version: Version): F[Unit] = {
 
+    println(s"===> addPartition: $table => $partition / $version")
+
     def partitionLocation(tableLocation: URI): String = {
       val unversionedLocation: String = partition.resolvePath(tableLocation).toString
       if (version == Version.Unversioned) unversionedLocation
@@ -85,7 +87,12 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
       glueTable <- getGlueTable(table)
       tableLocation = findTableLocation(glueTable)
       location = partitionLocation(tableLocation)
-      storageDescriptor = new StorageDescriptor().withLocation(location)
+      storageDescriptor = new StorageDescriptor()
+        .withLocation(location)
+        .withSerdeInfo(new SerDeInfo()
+          .withSerializationLibrary("org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"))
+        .withInputFormat("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat")
+        .withOutputFormat("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")
       partitionValues = partition.columnValues.map(_.value).toList
       input = new PartitionInput().withValues(partitionValues).withStorageDescriptor(storageDescriptor)
       addPartitionRequest = new CreatePartitionRequest()
@@ -98,9 +105,17 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
 
   private def updatePartitionVersion(table: TableName, partition: Partition, version: Version): F[Unit] = {
 
+    println(s"===> updatePartitionVersion: $table => $partition / $version")
+
     def updatePartition(partitionLocation: URI): F[Unit] = {
       val partitionValues = partition.columnValues.map(_.value).toList
-      val storageDescriptor = new StorageDescriptor().withLocation(partitionLocation.toString)
+
+      val storageDescriptor = new StorageDescriptor()
+        .withLocation(partitionLocation.toString)
+        .withSerdeInfo(new SerDeInfo()
+          .withSerializationLibrary("org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"))
+        .withInputFormat("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat")
+        .withOutputFormat("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")
       val input = new PartitionInput().withValues(partitionValues).withStorageDescriptor(storageDescriptor)
 
       val updatePartitionRequest = new UpdatePartitionRequest()
@@ -142,7 +157,7 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
       storageDescriptor = new StorageDescriptor().withLocation(versionedPath.toString)
       tableInput = new TableInput().withName(table.name).withStorageDescriptor(storageDescriptor)
       updateRequest = new UpdateTableRequest().withDatabaseName(table.schema).withTableInput(tableInput)
-      res <- F.delay(glue.updateTable(updateRequest))
+      _ <- F.delay(glue.updateTable(updateRequest))
     } yield ()
   }
 
