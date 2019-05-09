@@ -9,7 +9,7 @@ import com.gu.tableversions.core.TableVersions.{UpdateMessage, UserId}
 import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore
 import com.gu.tableversions.spark.filesystem.VersionedFileSystem
-import com.gu.tableversions.spark.{SparkHiveMetastore, SparkHiveSuite}
+import com.gu.tableversions.spark.{SparkHiveMetastore, SparkHiveSuite, VersionContext}
 import org.scalatest.{FlatSpec, Matchers}
 
 /**
@@ -25,9 +25,10 @@ class MultiPartitionTableLoaderSpec extends FlatSpec with Matchers with SparkHiv
   "Writing multiple versions of a dataset with multiple partition columns" should "produce distinct partition versions" in {
 
     import spark.implicits._
-    implicit val tableVersions: TableVersions[IO] = InMemoryTableVersions[IO].unsafeRunSync()
-    implicit val metastore: Metastore[IO] = new SparkHiveMetastore[IO]()
-    implicit val versionGenerator: IO[Version] = Version.generateVersion
+    val tableVersions: TableVersions[IO] = InMemoryTableVersions[IO].unsafeRunSync()
+    val metastore: Metastore[IO] = new SparkHiveMetastore[IO]()
+    val versionGenerator: IO[Version] = Version.generateVersion
+    val versionContext = VersionContext(tableVersions, metastore, versionGenerator)
 
     val table = TableDefinition(
       TableName(schema, "ad_impressions"),
@@ -46,7 +47,7 @@ class MultiPartitionTableLoaderSpec extends FlatSpec with Matchers with SparkHiv
                  |LOCATION '${table.location}'
     """.stripMargin
 
-    val loader = new TableLoader[AdImpression](table, ddl, isSnapshot = false)
+    val loader = new TableLoader[AdImpression](versionContext, table, ddl, isSnapshot = false)
     val userId1 = UserId("test user 1")
 
     loader.initTable(userId1, UpdateMessage("init"))

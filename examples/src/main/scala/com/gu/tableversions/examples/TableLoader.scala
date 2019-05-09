@@ -6,7 +6,7 @@ import cats.effect.IO
 import com.gu.tableversions.core.TableVersions.{UpdateMessage, UserId}
 import com.gu.tableversions.core.{TableDefinition, TableVersions, Version}
 import com.gu.tableversions.metastore.Metastore
-import com.gu.tableversions.spark.VersionedDataset
+import com.gu.tableversions.spark.VersionContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.{Dataset, SparkSession}
 
@@ -15,14 +15,16 @@ import scala.reflect.runtime.universe.TypeTag
 /**
   * Example code for loading data into versioned tables and updating the versions of such tables.
   */
-class TableLoader[T <: Product: TypeTag](table: TableDefinition, createTableDdl: String, isSnapshot: Boolean)(
-    implicit tableVersions: TableVersions[IO],
-    metastore: Metastore[IO],
-    generateVersion: IO[Version],
-    spark: SparkSession)
+class TableLoader[T <: Product: TypeTag](
+    versionContext: VersionContext,
+    table: TableDefinition,
+    createTableDdl: String,
+    isSnapshot: Boolean)(implicit spark: SparkSession)
     extends LazyLogging {
 
   import spark.implicits._
+  import versionContext._
+  import versionContext.implicits._
 
   def initTable(userId: UserId, message: UpdateMessage): Unit = {
     // Create table in underlying metastore
@@ -36,8 +38,6 @@ class TableLoader[T <: Product: TypeTag](table: TableDefinition, createTableDdl:
     spark.table(table.name.fullyQualifiedName).as[T]
 
   def insert(dataset: Dataset[T], userId: UserId, message: String): Unit = {
-    import VersionedDataset._
-
     val (latestVersion, metastoreChanges) = dataset.versionedInsertInto(table, userId, message)
 
     logger.info(s"Updated table $table, new version details:\n$latestVersion")
