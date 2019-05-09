@@ -2,7 +2,6 @@ package com.gu.tableversions.spark.filesystem
 
 import java.net.URI
 
-import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs._
 import org.apache.hadoop.fs.permission.FsPermission
 import org.apache.hadoop.util.Progressable
@@ -35,7 +34,6 @@ abstract class ProxyFileSystem extends FileSystem {
   protected def initialiseProxyFileSystem(_baseUri: URI, _baseFilesystem: FileSystem, _pathMapper: PathMapper): Unit = {
     baseUri = _baseUri
     pathMapper = _pathMapper
-
     baseFs = _baseFilesystem
   }
 
