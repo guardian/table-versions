@@ -50,14 +50,18 @@ class VersionedFileSystem extends ProxyFileSystem with LazyLogging {
 
     // When initialising the versioned filesystem we need to swap the versioned:// prefix
     // in the URI passed during initialisation to the base scheme.
-    val baseURI = new URI(baseFsScheme, null, path.getSchemeSpecificPart, null, null)
+    val baseUri = new URI(baseFsScheme, null, path.getSchemeSpecificPart, null, null)
 
     val config = VersionedFileSystem
       .readConfig(new URI(configDirectory), conf)
       .valueOr(e => throw new Exception("Unable to read partition version configuration", e))
 
     val pathMapper = new VersionedPathMapper(baseFsScheme, config.partitionVersions)
-    initialiseProxyFileSystem(baseURI, pathMapper, conf)
+
+    val baseFs = FileSystem.get(baseUri, conf)
+    baseFs.initialize(baseUri, conf)
+
+    initialiseProxyFileSystem(baseUri, baseFs, pathMapper)
   }
 }
 

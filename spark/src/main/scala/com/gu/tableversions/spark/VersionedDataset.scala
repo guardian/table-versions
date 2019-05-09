@@ -52,7 +52,7 @@ object VersionedDataset {
         // Find the partition values in the given dataset
         datasetPartitions <- IO(VersionedDataset.partitionValues(dataset, table.partitionSchema)(dataset.sparkSession))
 
-        // Resolve the path that each partition should be written to, based on their version
+        // Use the same version for each of the partitions we'll be writing
         partitionVersions = datasetPartitions.map(p => p -> version).toMap
 
         // Write Spark dataset to the versioned path

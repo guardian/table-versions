@@ -32,12 +32,11 @@ abstract class ProxyFileSystem extends FileSystem {
   @volatile protected var pathMapper: PathMapper = _
 
   /** Call from concrete implementation to initialise the base class. */
-  protected def initialiseProxyFileSystem(_baseUri: URI, _pathMapper: PathMapper, hadoopConfig: Configuration): Unit = {
+  protected def initialiseProxyFileSystem(_baseUri: URI, _baseFilesystem: FileSystem, _pathMapper: PathMapper): Unit = {
     baseUri = _baseUri
     pathMapper = _pathMapper
 
-    baseFs = FileSystem.get(baseUri, hadoopConfig)
-    baseFs.initialize(baseUri, hadoopConfig)
+    baseFs = _baseFilesystem
   }
 
   override def getUri: URI =
