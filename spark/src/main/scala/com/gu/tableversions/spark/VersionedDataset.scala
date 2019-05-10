@@ -127,9 +127,10 @@ object VersionedDataset {
     VersionedFileSystem.writeConfig(VersionedFileSystemConfig(partitionVersions),
                                     dataset.sparkSession.sparkContext.hadoopConfiguration)
 
+    import StructTypeSyntax._
     import DataFrameSyntax._
 
-    val partitions = table.partitionSchema.columns.map(_.name.camel)
+    val partitions: List[String] = table.partitionSchema.columns.map(_.name.camel)
 
     dataset.toDF.withSnakeCaseColumnNames.write
       .partitionBy(partitions: _*)
