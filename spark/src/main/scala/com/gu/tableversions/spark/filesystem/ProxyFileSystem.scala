@@ -2,6 +2,7 @@ package com.gu.tableversions.spark.filesystem
 
 import java.net.URI
 
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.hadoop.fs._
 import org.apache.hadoop.fs.permission.FsPermission
 import org.apache.hadoop.util.Progressable
@@ -70,6 +71,7 @@ abstract class ProxyFileSystem extends FileSystem {
 
   override def getWorkingDirectory: Path =
     pathMapper.fromUnderlying(baseFs.getWorkingDirectory)
+  }
 
   override def mkdirs(f: Path, permission: FsPermission): Boolean =
     baseFs.mkdirs(pathMapper.forUnderlying(f), permission)
