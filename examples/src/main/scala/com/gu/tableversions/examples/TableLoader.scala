@@ -6,7 +6,7 @@ import cats.effect.IO
 import com.gu.tableversions.core.TableVersions.{UpdateMessage, UserId}
 import com.gu.tableversions.core.{TableDefinition, TableVersions, Version}
 import com.gu.tableversions.metastore.Metastore
-import com.gu.tableversions.spark.VersionContext
+import com.gu.tableversions.spark.{SparkSupport, VersionContext}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.{Dataset, SparkSession}
 
@@ -24,7 +24,8 @@ class TableLoader[T <: Product: TypeTag](
 
   import spark.implicits._
   import versionContext._
-  import versionContext.implicits._
+  val ss = SparkSupport(versionContext)
+  import ss.syntax._
 
   def initTable(userId: UserId, message: UpdateMessage): Unit = {
     // Create table in underlying metastore

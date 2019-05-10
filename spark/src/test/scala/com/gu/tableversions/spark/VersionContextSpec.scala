@@ -46,12 +46,12 @@ class VersionContextSpec extends FlatSpec with Matchers with SparkHiveSuite {
       Partition(PartitionColumn("date"), "2019-01-16"),
       Partition(PartitionColumn("date"), "2019-01-18")
     )
-    VersionContext.partitionValues(partitionedDataset, schema) should contain theSameElementsAs expectedPartitions
+    SparkSupport.partitionValues(partitionedDataset, schema) should contain theSameElementsAs expectedPartitions
   }
 
   it should "return no partitions for an empty dataset with a partitioned schema" in {
     val schema = PartitionSchema(List(PartitionColumn("date")))
-    VersionContext.partitionValues(spark.emptyDataset[Event], schema) shouldBe empty
+    SparkSupport.partitionValues(spark.emptyDataset[Event], schema) shouldBe empty
   }
 
   "Writing a dataset with multiple partitions" should "store the data for each partition in a versioned folder for the partition" in {
@@ -77,7 +77,7 @@ class VersionContextSpec extends FlatSpec with Matchers with SparkHiveSuite {
       Partition(PartitionColumn("date"), "2019-01-18") -> version1
     )
 
-    VersionContext.writeVersionedPartitions(eventsGroup1.toDS(), table, partitionPathsV1)
+    SparkSupport.writeVersionedPartitions(eventsGroup1.toDS(), table, partitionPathsV1)
 
     readDataset[Event](new URI(versionedPath))
       .collect() should contain theSameElementsAs eventsGroup1
@@ -96,7 +96,7 @@ class VersionContextSpec extends FlatSpec with Matchers with SparkHiveSuite {
       Partition(PartitionColumn("date"), "2019-01-18") -> version2
     )
 
-    VersionContext.writeVersionedPartitions(eventsGroup2.toDS(), table, partitionPathsV2)
+    SparkSupport.writeVersionedPartitions(eventsGroup2.toDS(), table, partitionPathsV2)
 
     readDataset[Event](new URI(versionedPath))
       .collect() should contain theSameElementsAs eventsGroup2
@@ -123,7 +123,8 @@ class VersionContextSpec extends FlatSpec with Matchers with SparkHiveSuite {
     }
 
     import versionContext._
-    import versionContext.implicits._
+    val ss = SparkSupport(versionContext)
+    import ss.syntax._
 
     val users = List(
       User("101", "Alice"),
@@ -177,7 +178,8 @@ class VersionContextSpec extends FlatSpec with Matchers with SparkHiveSuite {
     }
 
     import versionContext._
-    import versionContext.implicits._
+    val ss = SparkSupport(versionContext)
+    import ss.syntax._
 
     val events = List(
       Event("101", "A", Date.valueOf("2019-01-15")),
@@ -234,7 +236,8 @@ class VersionContextSpec extends FlatSpec with Matchers with SparkHiveSuite {
     }
 
     import versionContext._
-    import versionContext.implicits._
+    val ss = SparkSupport(versionContext)
+    import ss.syntax._
 
     val eventsDay1 = List(
       Event("101", "A", Date.valueOf("2019-01-15")),
