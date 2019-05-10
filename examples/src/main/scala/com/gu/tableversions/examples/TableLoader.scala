@@ -2,10 +2,8 @@ package com.gu.tableversions.examples
 
 import java.time.Instant
 
-import cats.effect.IO
 import com.gu.tableversions.core.TableVersions.{UpdateMessage, UserId}
-import com.gu.tableversions.core.{TableDefinition, TableVersions, Version}
-import com.gu.tableversions.metastore.Metastore
+import com.gu.tableversions.core.{TableDefinition, TableVersions}
 import com.gu.tableversions.spark.{SparkSupport, VersionContext}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.{Dataset, SparkSession}

@@ -11,7 +11,7 @@ import com.gu.tableversions.metastore.Metastore.TableChanges
 import com.gu.tableversions.metastore.{Metastore, VersionPaths}
 import com.gu.tableversions.spark.filesystem.VersionedFileSystem
 import com.gu.tableversions.spark.filesystem.VersionedFileSystem.VersionedFileSystemConfig
-import org.apache.spark.sql.{Dataset, Row, SaveMode, SparkSession}
+import org.apache.spark.sql.{Dataset, Row, SaveMode}
 
 /**
   * Code for writing Spark datasets to storage in a version-aware manner, taking in version information,
@@ -62,13 +62,13 @@ object SparkSupport {
     def writePartitionedDataset(version: Version): IO[List[TableOperation]] =
       for {
         // Find the partition values in the given dataset
-        datasetPartitions <- IO(partitionValues(dataset, table.partitionSchema)(dataset.sparkSession))
+        datasetPartitions <- IO(partitionValues(dataset, table.partitionSchema))
 
         // Use the same version for each of the partitions we'll be writing
         partitionVersions = datasetPartitions.map(p => p -> version).toMap
 
         // Write Spark dataset to the versioned path
-        _ <- IO(writeVersionedPartitions(dataset, table, partitionVersions)(dataset.sparkSession))
+        _ <- IO(writeVersionedPartitions(dataset, table, partitionVersions))
 
       } yield datasetPartitions.map(partition => AddPartitionVersion(partition, version))
 
@@ -102,8 +102,7 @@ object SparkSupport {
   /**
     * Get the unique partition values that exist within the given dataset, based on given partition columns.
     */
-  private[spark] def partitionValues[T](dataset: Dataset[T], partitionSchema: PartitionSchema)(
-      implicit spark: SparkSession): List[Partition] = {
+  private[spark] def partitionValues[T](dataset: Dataset[T], partitionSchema: PartitionSchema): List[Partition] = {
     // Query dataset for partitions
     // NOTE: this implementation has not been optimised yet
     val partitionColumnsList = partitionSchema.columns.map(_.name)
@@ -131,7 +130,7 @@ object SparkSupport {
   private[spark] def writeVersionedPartitions[T](
       dataset: Dataset[T],
       table: TableDefinition,
-      partitionVersions: Map[Partition, Version])(implicit spark: SparkSession): Unit = {
+      partitionVersions: Map[Partition, Version]): Unit = {
 
     VersionedFileSystem.writeConfig(VersionedFileSystemConfig(partitionVersions),
                                     dataset.sparkSession.sparkContext.hadoopConfiguration)
