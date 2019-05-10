@@ -6,7 +6,15 @@ import cats.effect.IO
 import cats.implicits._
 import com.amazonaws.auth._
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import com.amazonaws.services.glue.model._
+import com.amazonaws.services.glue.model.{
+  Column,
+  CreateTableRequest,
+  DeleteTableRequest,
+  GetPartitionsRequest,
+  GetPartitionsResult,
+  StorageDescriptor,
+  TableInput
+}
 import com.amazonaws.services.glue.{AWSGlue, AWSGlueClient}
 import com.gu.tableversions.core.Partition.PartitionColumn
 import com.gu.tableversions.core._
@@ -17,7 +25,7 @@ import scala.util.{Properties, Random}
 
 class GlueMetastoreSpec extends FlatSpec with Matchers with BeforeAndAfterAll with MetastoreSpec {
 
-  def readMandatoryEnvVariable(varName: String) =
+  def readMandatoryEnvVariable(varName: String): Either[String, String] =
     Properties.envOrNone(varName).toRight(s"$varName environment variable must be set")
 
   val AWSProfileEnvVarName = "TABLE_VERSIONS_TEST_AWS_PROFILE"
@@ -43,6 +51,7 @@ class GlueMetastoreSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
         List(new ProfileCredentialsProvider, new InstanceProfileCredentialsProvider(false))
 
     }
+
     lazy val credentials = new AWSCredentialsProviderChain(providers: _*)
 
     val glue: AWSGlue = AWSGlueClient.builder().withCredentials(credentials).withRegion(awsRegion).build()
@@ -63,6 +72,31 @@ class GlueMetastoreSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
                       tableLocation,
                       PartitionSchema(List(PartitionColumn("date"))),
                       FileFormat.Parquet)
+    }
+
+    "creating a partition" should "set serde serialization parameters" in {
+      import scala.collection.JavaConverters._
+
+      val result = for {
+        _ <- initTable(partitionedTable)
+        ms = new GlueMetastore[IO](glue)
+        dateCol = PartitionColumn("date")
+        partition = Partition(dateCol, "2019-01-01")
+        version <- Version.generateVersion
+        _ <- ms.addPartition(partitionedTable.name, partition, version)
+        req = new GetPartitionsRequest()
+          .withTableName(partitionedTable.name.name)
+          .withDatabaseName(partitionedTable.name.schema)
+      } yield (glue.getPartitions(req).getPartitions.asScala, version)
+
+      val (partitions, version) = result.guarantee(deleteTable(partitionedTable.name)).unsafeRunSync()
+
+      partitions should have size 1
+      partitions.head.getStorageDescriptor.getLocation should startWith(
+        s"/table-versions-test/date=2019-01-01/${version.label}")
+      partitions.head.getStorageDescriptor.getInputFormat shouldBe "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+      partitions.head.getStorageDescriptor.getOutputFormat shouldBe "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+      partitions.head.getStorageDescriptor.getSerdeInfo.getSerializationLibrary shouldBe "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
     }
 
     "A metastore implementation" should behave like metastoreWithSnapshotSupport(IO {

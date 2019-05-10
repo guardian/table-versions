@@ -1,6 +1,7 @@
 package com.gu.tableversions.glue
 
 import java.net.URI
+
 import cats.effect.Sync
 import cats.implicits._
 import com.amazonaws.services.glue.AWSGlue
@@ -10,10 +11,11 @@ import com.gu.tableversions.core._
 import com.gu.tableversions.metastore.Metastore.TableOperation
 import com.gu.tableversions.metastore.Metastore.TableOperation._
 import com.gu.tableversions.metastore.{Metastore, VersionPaths}
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.JavaConversions._
 
-class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[F] {
+class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[F] with LazyLogging {
 
   override def currentVersion(table: TableName): F[TableVersion] = {
 
@@ -59,7 +61,6 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
       val partitionVersions: Map[Partition, Version] = gluePartitions.map(toPartitionWithVersion).toMap
       PartitionedTableVersion(partitionVersions)
     }
-
   }
 
   override def update(table: TableName, changes: Metastore.TableChanges): F[Unit] =
@@ -75,7 +76,7 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
 
   def addPartition(table: TableName, partition: Partition, version: Version): F[Unit] = {
 
-    println(s"===> addPartition: $table => $partition / $version")
+    logger.info(s"adding partition ${partition.columnValues.toList} for table $table and $version")
 
     def partitionLocation(tableLocation: URI): String = {
       val unversionedLocation: String = partition.resolvePath(tableLocation).toString
@@ -86,15 +87,10 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
     for {
       glueTable <- getGlueTable(table)
       tableLocation = findTableLocation(glueTable)
-      location = partitionLocation(tableLocation)
-      storageDescriptor = new StorageDescriptor()
-        .withLocation(location)
-        .withSerdeInfo(new SerDeInfo()
-          .withSerializationLibrary("org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"))
-        .withInputFormat("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat")
-        .withOutputFormat("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")
       partitionValues = partition.columnValues.map(_.value).toList
-      input = new PartitionInput().withValues(partitionValues).withStorageDescriptor(storageDescriptor)
+      input = new PartitionInput()
+        .withValues(partitionValues)
+        .withStorageDescriptor(storageDescriptor(partitionLocation(tableLocation)))
       addPartitionRequest = new CreatePartitionRequest()
         .withDatabaseName(table.schema)
         .withTableName(table.name)
@@ -105,18 +101,14 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
 
   private def updatePartitionVersion(table: TableName, partition: Partition, version: Version): F[Unit] = {
 
-    println(s"===> updatePartitionVersion: $table => $partition / $version")
+    logger.info(s"updating partition ${partition.columnValues.toList} for table $table and $version")
 
     def updatePartition(partitionLocation: URI): F[Unit] = {
       val partitionValues = partition.columnValues.map(_.value).toList
 
-      val storageDescriptor = new StorageDescriptor()
-        .withLocation(partitionLocation.toString)
-        .withSerdeInfo(new SerDeInfo()
-          .withSerializationLibrary("org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"))
-        .withInputFormat("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat")
-        .withOutputFormat("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")
-      val input = new PartitionInput().withValues(partitionValues).withStorageDescriptor(storageDescriptor)
+      val input = new PartitionInput()
+        .withValues(partitionValues)
+        .withStorageDescriptor(storageDescriptor(partitionLocation.toString))
 
       val updatePartitionRequest = new UpdatePartitionRequest()
         .withDatabaseName(table.schema)
@@ -139,6 +131,8 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
     } yield versionedPartitionLocation
 
   def removePartition(table: TableName, partition: Partition): F[Unit] = {
+    logger.info(s"removing partition ${partition.columnValues.toList} for table $table")
+
     val partitionValues = partition.columnValues.map(_.value).toList
     val deletePartitionRequest = new DeletePartitionRequest()
       .withDatabaseName(table.schema)
@@ -154,8 +148,9 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
       glueTableLocation = new URI(glueTable.getStorageDescriptor.getLocation)
       basePath = VersionPaths.versionedToBasePath(glueTableLocation)
       versionedPath = VersionPaths.pathFor(basePath, version)
-      storageDescriptor = new StorageDescriptor().withLocation(versionedPath.toString)
-      tableInput = new TableInput().withName(table.name).withStorageDescriptor(storageDescriptor)
+      tableInput = new TableInput()
+        .withName(table.name)
+        .withStorageDescriptor(storageDescriptor(versionedPath.toString))
       updateRequest = new UpdateTableRequest().withDatabaseName(table.schema).withTableInput(tableInput)
       _ <- F.delay(glue.updateTable(updateRequest))
     } yield ()
@@ -169,10 +164,19 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
   private[glue] def getGlueTable(table: TableName): F[GlueTable] = F.delay {
     val getTableRequest = new GetTableRequest().withDatabaseName(table.schema).withName(table.name)
     val getTableResponse = glue.getTable(getTableRequest)
+
     getTableResponse.getTable
   }
-  private[glue] def findTableLocation(glueTable: GlueTable) = {
+  private[glue] def findTableLocation(glueTable: GlueTable): URI = {
     val location = glueTable.getStorageDescriptor.getLocation
     new URI(location)
   }
+
+  def storageDescriptor(versionedPath: String): StorageDescriptor =
+    new StorageDescriptor()
+      .withLocation(versionedPath)
+      .withSerdeInfo(new SerDeInfo()
+        .withSerializationLibrary("org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"))
+      .withInputFormat("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat")
+      .withOutputFormat("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")
 }
