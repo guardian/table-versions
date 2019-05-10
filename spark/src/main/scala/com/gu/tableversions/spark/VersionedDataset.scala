@@ -11,6 +11,7 @@ import com.gu.tableversions.metastore.Metastore.TableChanges
 import com.gu.tableversions.metastore.{Metastore, VersionPaths}
 import com.gu.tableversions.spark.filesystem.VersionedFileSystem
 import com.gu.tableversions.spark.filesystem.VersionedFileSystem.VersionedFileSystemConfig
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SaveMode, SparkSession}
 
@@ -18,7 +19,7 @@ import org.apache.spark.sql.{DataFrame, Dataset, Row, SaveMode, SparkSession}
   * Code for writing Spark datasets to storage in a version-aware manner, taking in version information,
   * using the appropriate paths for storage, and committing version changes.
   */
-object VersionedDataset {
+object VersionedDataset extends LazyLogging {
 
   implicit class DatasetOps[T](val delegate: Dataset[T])(
       implicit tableVersions: TableVersions[IO],
@@ -57,7 +58,7 @@ object VersionedDataset {
         partitionVersions = datasetPartitions.map(p => p -> version).toMap
 
         // Write Spark dataset to the versioned path
-        _ <- IO(VersionedDataset.writeVersionedPartitions(dataset, table, partitionVersions)(dataset.sparkSession)(dataset.sparkSession))
+        _ <- IO(VersionedDataset.writeVersionedPartitions(dataset, table, partitionVersions)(dataset.sparkSession))
 
       } yield datasetPartitions.map(partition => AddPartitionVersion(partition, version))
 
@@ -130,13 +131,16 @@ object VersionedDataset {
     import StructTypeSyntax._
     import DataFrameSyntax._
 
-    val partitions: List[String] = table.partitionSchema.columns.map(_.name.camel)
+    val partitions: List[String] = table.partitionSchema.columns.map(_.name.snake)
+
+    logger.info("===> " + VersionedFileSystem.scheme + "://" + table.location.getPath)
+    logger.info("===> " + table.location.getPath)
 
     dataset.toDF.withSnakeCaseColumnNames.write
       .partitionBy(partitions: _*)
       .mode(SaveMode.Append)
       .format(table.format.name)
-      .save(VersionedFileSystem.scheme + "://" + table.location.getPath)
+      .save(VersionedFileSystem.scheme + "://" + table.location.getAuthority + table.location.getPath)
   }
 }
 

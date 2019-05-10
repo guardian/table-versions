@@ -58,6 +58,10 @@ class VersionedFileSystem extends ProxyFileSystem with LazyLogging {
 
     val pathMapper = new VersionedPathMapper(baseFsScheme, config.partitionVersions)
 
+    logger.info(s"path = $path")
+    logger.info(s"getSchemeSpecificPart = ${path.getRawSchemeSpecificPart}")
+    logger.info(s"baseUri = $baseUri")
+
     val baseFs = FileSystem.get(baseUri, conf)
     baseFs.initialize(baseUri, conf)
 
@@ -85,7 +89,7 @@ object VersionedFileSystem extends LazyLogging {
     Map(
       // @formatter: off
       "spark.hadoop.fs.versioned.impl" -> "com.gu.tableversions.spark.filesystem.VersionedFileSystem",
-      "spark.hadoop." + ConfigKeys.baseFS -> "file",
+      "spark.hadoop." + ConfigKeys.baseFS -> baseFileSystemSchema,
       "spark.hadoop." + ConfigKeys.configDirectory -> configDirectory.toString,
       "spark.hadoop." + VersionedFileSystem.ConfigKeys.disableCache -> "true"
       // @formatter: on
