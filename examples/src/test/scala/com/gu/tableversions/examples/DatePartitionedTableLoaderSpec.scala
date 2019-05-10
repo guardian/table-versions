@@ -4,13 +4,11 @@ import java.net.URI
 import java.nio.file.Paths
 import java.sql.{Date, Timestamp}
 
-import cats.effect.IO
 import com.gu.tableversions.core.Partition.PartitionColumn
 import com.gu.tableversions.core.TableVersions._
 import com.gu.tableversions.core._
+import com.gu.tableversions.spark.SparkHiveSuite
 import com.gu.tableversions.spark.filesystem.VersionedFileSystem
-import com.gu.tableversions.spark.{SparkHiveMetastore, SparkHiveSuite, VersionContext}
-import org.apache.spark.sql.SparkSession
 import org.scalatest.{FlatSpec, Matchers}
 
 /**
@@ -170,14 +168,4 @@ object DatePartitionedTableLoaderSpec {
 
   }
 
-}
-
-object TestVersionContext {
-
-  def default(implicit spark: SparkSession): IO[VersionContext] =
-    for {
-      tableVersions <- InMemoryTableVersions[IO]
-      metastore = new SparkHiveMetastore[IO]()
-      versionGenerator = Version.generateVersion
-    } yield VersionContext(tableVersions, metastore, versionGenerator)
 }
