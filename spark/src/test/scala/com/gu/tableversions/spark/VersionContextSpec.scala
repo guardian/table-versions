@@ -8,10 +8,8 @@ import cats.effect.IO
 import com.gu.tableversions.core.Partition.PartitionColumn
 import com.gu.tableversions.core.TableVersions._
 import com.gu.tableversions.core._
-import com.gu.tableversions.metastore.Metastore
-import com.gu.tableversions.metastore.Metastore.TableChanges
-import com.gu.tableversions.metastore.Metastore.TableOperation.{AddPartition, UpdateTableVersion}
-import com.gu.tableversions.spark.VersionContext._
+import com.gu.tableversions.core.Metastore.TableChanges
+import com.gu.tableversions.core.Metastore.TableOperation.{AddPartition, UpdateTableVersion}
 import com.gu.tableversions.spark.VersionContextSpec.{Event, User}
 import com.gu.tableversions.spark.filesystem.VersionedFileSystem
 import org.apache.spark.sql.Dataset
