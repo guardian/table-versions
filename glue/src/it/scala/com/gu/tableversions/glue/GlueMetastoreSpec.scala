@@ -10,7 +10,6 @@ import com.amazonaws.services.glue.model._
 import com.amazonaws.services.glue.{AWSGlue, AWSGlueClient}
 import com.gu.tableversions.core.Partition.PartitionColumn
 import com.gu.tableversions.core._
-import com.gu.tableversions.metastore.MetastoreSpec
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
 import scala.util.{Properties, Random}

@@ -1,15 +1,15 @@
 package com.gu.tableversions.glue
 
 import java.net.URI
+
 import cats.effect.Sync
 import cats.implicits._
 import com.amazonaws.services.glue.AWSGlue
 import com.amazonaws.services.glue.model.{Partition => GluePartition, Table => GlueTable, TableVersion => _, _}
 import com.gu.tableversions.core.Partition.{ColumnValue, PartitionColumn}
 import com.gu.tableversions.core._
-import com.gu.tableversions.metastore.Metastore.TableOperation
-import com.gu.tableversions.metastore.Metastore.TableOperation._
-import com.gu.tableversions.metastore.{Metastore, VersionPaths}
+import com.gu.tableversions.core.Metastore.TableOperation
+import com.gu.tableversions.core.Metastore.TableOperation._
 
 import scala.collection.JavaConversions._
 

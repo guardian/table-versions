@@ -1,10 +1,8 @@
-package com.gu.tableversions.metastore
+package com.gu.tableversions.core
 
 import java.io.File
 import java.net.URI
-import cats.implicits._
-
-import com.gu.tableversions.core.{Partition, Version}
+import cats.syntax.either._
 
 /**
   * Encodes the mapping between version numbers and storage paths.
