@@ -16,7 +16,7 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.collection.JavaConversions._
 
 class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[F] with LazyLogging {
-
+  import GlueMetastore._
   override def currentVersion(table: TableName): F[TableVersion] = {
 
     def getPartitionColumns(glueTable: GlueTable): List[PartitionColumn] =
@@ -169,9 +169,17 @@ class GlueMetastore[F[_]](glue: AWSGlue)(implicit F: Sync[F]) extends Metastore[
     new URI(location)
   }
 
+}
+
+object GlueMetastore {
+
   def extractFormatParams(source: StorageDescriptor): StorageDescriptor = {
+    val maybeSerdeInfo = Option(source.getSerdeInfo).map { serdeInfo =>
+      new SerDeInfo().withSerializationLibrary(serdeInfo.getSerializationLibrary)
+    }
+
     new StorageDescriptor()
-      .withSerdeInfo(new SerDeInfo().withSerializationLibrary(source.getSerdeInfo.getSerializationLibrary))
+      .withSerdeInfo(maybeSerdeInfo.getOrElse(null))
       .withInputFormat(source.getInputFormat)
       .withOutputFormat(source.getOutputFormat)
   }

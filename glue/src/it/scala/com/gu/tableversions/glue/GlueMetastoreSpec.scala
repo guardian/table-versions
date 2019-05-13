@@ -24,7 +24,7 @@ import org.scalatest.{Assertion, BeforeAndAfterAll, FlatSpec, Matchers}
 
 import scala.util.{Properties, Random}
 
-class GlueMetastoreSpec extends FlatSpec with Matchers with BeforeAndAfterAll with MetastoreSpec {
+class GlueMetastoreSpec extends FlatSpec with Matchers with MetastoreSpec {
 
   def readMandatoryEnvVariable(varName: String) =
     Properties.envOrNone(varName).toRight(s"$varName environment variable must be set")
