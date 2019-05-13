@@ -22,7 +22,6 @@ object VersionPaths {
     }
 
   /**
-    *
     * @return the corresponding version to the provided location
     */
   def parseVersion(location: URI): Version = {
@@ -36,7 +35,6 @@ object VersionPaths {
   }
 
   /**
-    *
     * @return the provided location with the version part removed (if present)
     */
   def versionedToBasePath(location: URI): URI = {
