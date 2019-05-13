@@ -159,14 +159,14 @@ class GlueMetastoreSpec extends FlatSpec with Matchers with MetastoreSpec {
         getPartitionsReq = new GetPartitionsRequest()
           .withTableName(partitionedTable.name.name)
           .withDatabaseName(partitionedTable.name.schema)
-        expectedVersionBeforeUpdate <- Version.generateVersion
-        expectedVersionAfterUpdate <- Version.generateVersion
-        _ <- metastore.addPartition(partitionedTable.name, partition, expectedVersionBeforeUpdate)
+        version1 <- Version.generateVersion
+        version2 <- Version.generateVersion
+        _ <- metastore.addPartition(partitionedTable.name, partition, version1)
         partitionsBeforeUpdate = glue.getPartitions(getPartitionsReq).getPartitions.asScala
-        _ <- metastore.updatePartitionVersion(partitionedTable.name, partition, expectedVersionAfterUpdate)
+        _ <- metastore.updatePartitionVersion(partitionedTable.name, partition, version2)
         partitionsAfterUpdate = glue.getPartitions(getPartitionsReq).getPartitions.asScala
 
-      } yield (partitionsBeforeUpdate, partitionsAfterUpdate, expectedVersionBeforeUpdate, expectedVersionAfterUpdate)
+      } yield (partitionsBeforeUpdate, partitionsAfterUpdate, version1, version2)
 
       val (partitionsBeforeUpdate, partitionsAfterUpdate, expectedVersionBeforeUpdate, expectedVersionAfterUpdate) =
         scenario.guarantee(deleteTable(partitionedTable.name)).unsafeRunSync()
