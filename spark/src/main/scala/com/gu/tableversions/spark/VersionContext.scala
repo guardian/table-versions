@@ -2,7 +2,7 @@ package com.gu.tableversions.spark
 
 import java.time.Instant
 
-import cats.effect.Effect
+import cats.effect.{Effect, Sync}
 import cats.implicits._
 import com.gu.tableversions.core.Metastore.TableChanges
 import com.gu.tableversions.core.TableVersions.TableOperation._
@@ -54,7 +54,7 @@ object SparkSupport {
       dataset: Dataset[T],
       table: TableDefinition,
       userId: UserId,
-      message: String)(implicit F: Effect[F]): F[(TableVersion, TableChanges)] = {
+      message: String)(implicit F: Sync[F]): F[(TableVersion, TableChanges)] = {
 
     import versionContext._
 
