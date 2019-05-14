@@ -11,6 +11,6 @@ object TestVersionContext {
     for {
       tableVersions <- InMemoryTableVersions[IO]
       metastore = new SparkHiveMetastore[IO]()
-      versionGenerator = Version.generateVersion
+      versionGenerator = Version.generateVersion[IO]
     } yield VersionContext(VersionedMetastore(tableVersions, metastore), versionGenerator)
 }
