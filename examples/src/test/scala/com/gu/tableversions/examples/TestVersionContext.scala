@@ -7,7 +7,7 @@ import org.apache.spark.sql.SparkSession
 
 object TestVersionContext {
 
-  def default(implicit spark: SparkSession): IO[VersionContext] =
+  def default(implicit spark: SparkSession): IO[VersionContext[IO]] =
     for {
       tableVersions <- InMemoryTableVersions[IO]
       metastore = new SparkHiveMetastore[IO]()
