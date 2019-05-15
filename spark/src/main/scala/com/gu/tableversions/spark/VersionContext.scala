@@ -9,7 +9,7 @@ import com.gu.tableversions.core.Metastore.TableChanges
 import com.gu.tableversions.core.TableVersions.TableOperation._
 import com.gu.tableversions.core.TableVersions._
 import com.gu.tableversions.core._
-import com.gu.tableversions.spark.filesystem.{VersionedFileSystem, VersionedPathMapper}
+import com.gu.tableversions.spark.filesystem.VersionedFileSystem
 import com.gu.tableversions.spark.filesystem.VersionedFileSystem.VersionedFileSystemConfig
 import org.apache.spark.sql.{Dataset, Row, SaveMode}
 
