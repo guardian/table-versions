@@ -56,8 +56,17 @@ abstract class ProxyFileSystem extends FileSystem {
   override def append(f: Path, bufferSize: Int, progress: Progressable): FSDataOutputStream =
     baseFs.append(pathMapper.forUnderlying(f), bufferSize, progress)
 
-  override def rename(src: Path, dst: Path): Boolean =
-    baseFs.rename(pathMapper.forUnderlying(src), pathMapper.forUnderlying(dst))
+  private def ensurePathExists(path: Path) = if (!baseFs.exists(path)) baseFs.mkdirs(path)
+
+  override def rename(src: Path, dst: Path): Boolean = {
+    val underlyingSource = pathMapper.forUnderlying(src)
+    val underlyingDest = pathMapper.forUnderlying(dst)
+
+    ensurePathExists(underlyingDest.getParent)
+
+    baseFs.rename(underlyingSource, underlyingDest)
+
+  }
 
   override def delete(f: Path, recursive: Boolean): Boolean =
     baseFs.delete(pathMapper.forUnderlying(f), recursive)
