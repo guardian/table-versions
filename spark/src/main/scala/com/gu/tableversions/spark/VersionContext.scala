@@ -1,5 +1,6 @@
 package com.gu.tableversions.spark
 
+import java.net.URI
 import java.time.Instant
 
 import cats.effect.{Effect, Sync}
@@ -126,10 +127,16 @@ object SparkSupport {
 
     val partitions = table.partitionSchema.columns.map(_.name)
 
+    val versionedUri = new URI(VersionedFileSystem.scheme,
+                               table.location.getAuthority,
+                               table.location.getPath,
+                               table.location.getQuery,
+                               table.location.getFragment)
+
     dataset.toDF.write
       .partitionBy(partitions: _*)
       .mode(SaveMode.Append)
       .format(table.format.name)
-      .save(VersionedFileSystem.scheme + "://" + table.location.getPath)
+      .save(versionedUri.toString)
   }
 }
