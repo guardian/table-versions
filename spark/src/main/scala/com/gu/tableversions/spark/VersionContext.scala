@@ -9,7 +9,7 @@ import com.gu.tableversions.core.Metastore.TableChanges
 import com.gu.tableversions.core.TableVersions.TableOperation._
 import com.gu.tableversions.core.TableVersions._
 import com.gu.tableversions.core._
-import com.gu.tableversions.spark.filesystem.VersionedFileSystem
+import com.gu.tableversions.spark.filesystem.{VersionedFileSystem, VersionedPathMapper}
 import com.gu.tableversions.spark.filesystem.VersionedFileSystem.VersionedFileSystemConfig
 import org.apache.spark.sql.{Dataset, Row, SaveMode}
 
@@ -127,11 +127,7 @@ object SparkSupport {
 
     val partitions = table.partitionSchema.columns.map(_.name)
 
-    val versionedUri = new URI(VersionedFileSystem.scheme,
-                               table.location.getAuthority,
-                               table.location.getPath,
-                               table.location.getQuery,
-                               table.location.getFragment)
+    val versionedUri = setVersionedScheme(table.location)
 
     dataset.toDF.write
       .partitionBy(partitions: _*)
@@ -139,4 +135,11 @@ object SparkSupport {
       .format(table.format.name)
       .save(versionedUri.toString)
   }
+
+  private[spark] def setVersionedScheme(underlyingUri: URI): URI =
+    new URI(VersionedFileSystem.scheme,
+            underlyingUri.getAuthority,
+            underlyingUri.getPath,
+            underlyingUri.getQuery,
+            underlyingUri.getFragment)
 }
